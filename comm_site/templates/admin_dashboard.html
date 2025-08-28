@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>管理画面</h2>
+<p>ここから学校選択、ユーザー管理、投稿管理へ移動。</p>
+<ul>
+  <li><a href="{{ url_for('admin_dashboard') }}">学校選択</a></li>
+  <li><a href="{{ url_for('admin_dashboard') }}">ユーザー管理</a></li>
+  <li><a href="{{ url_for('admin_dashboard') }}">投稿管理</a></li>
+</ul>
+{% endblock %}
