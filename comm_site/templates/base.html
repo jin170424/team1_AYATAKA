@@ -7,8 +7,8 @@
 </head>
 <body>
     <nav>
-        {% if session.username %}
-        <p>ようこそ, {{ session.username }}さん</p>
+        {% if session.name %}
+        <p>ようこそ, {{ session.name }}さん</p>
         <a href="{{ url_for('logout') }}">ログアウト</a>
         {% endif %}
     </nav>
