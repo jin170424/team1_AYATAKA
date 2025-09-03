@@ -51,19 +51,6 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     scope = db.Column(db.String(50), nullable=False)
 
-# ====== 追加: School モデル ======
-class School(db.Model):
-    __tablename__ = "school"   # pgAdmin のテーブルと一致させる
-    school_id = db.Column(db.Integer, primary_key=True)
-    school_name = db.Column(db.String(100), nullable=False)
-
-# ====== 追加: Department モデル ======
-class Department(db.Model):
-    __tablename__ = "department"   # pgAdmin のテーブルと一致させる
-    department_id = db.Column(db.Integer, primary_key=True)
-    department_name = db.Column(db.String(100), nullable=False)
-
-# ====== 既存ルート ======
 @app.route("/")
 def index():
     return redirect(url_for("login"))
@@ -159,6 +146,8 @@ def create_account():
         )
         db.session.add(new_user)
         db.session.commit()
+
+    return render_template("Create_Account.html")
 
 @app.route("/user_management/select", methods=["GET", "POST"])
 def user_management_select():
