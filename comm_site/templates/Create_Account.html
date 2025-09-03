@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>アカウント作成</title>
+</head>
+<body>
+<h1>ユーザー情報入力</h1>
+<form id="signupForm" method="POST" action="/signup">
+    <div>
+    <label for="full_name">氏名</label><br>
+    <input type="text" id="full_name" name="full_name" required>
+    </div>
+    <div>
+    <label for="student_id">学籍番号</label><br>
+    <input type="text" id="student_id" name="student_id" required>
+    </div>
+
+    <!-- 所属校: DBから取得 -->
+    <div>
+    <label for="school">所属校</label><br>
+    <select id="school" name="school" required>
+        <option value="" disabled selected>選択してください</option>
+        {% for school in schools %}
+        <option value="{{ school.school_id }}">{{ school.school_name }}</option>
+        {% endfor %}
+    </select>
+    </div>
+
+<div>
+<label for="department">学科</label><br>
+<select id="department" name="department" required>
+    <option value="" disabled selected>選択してください</option>
+    {% for dept in departments %}
+    <option value="{{ dept.department_id }}">{{ dept.department_name }}</option>
+    {% endfor %}
+</select>
+</div>
+
+
+    <div>
+    <label for="password">パスワード</label><br>
+    <input type="password" id="password" name="password" minlength="8" required>
+    </div>
+    <div>
+    <label for="confirm_password">パスワード再入力</label><br>
+    <input type="password" id="confirm_password" name="confirm_password" minlength="8" required>
+    </div>
+
+    <br>
+    <button type="submit">アカウント作成</button>
+</form>
+
+<script>
+    document.getElementById("signupForm").addEventListener("submit", function(event) {
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirm_password").value;
+
+    if (password !== confirmPassword) {
+        alert("パスワードが一致しません。");
+        event.preventDefault();
+    }
+    });
+</script>
+</body>
+</html>
