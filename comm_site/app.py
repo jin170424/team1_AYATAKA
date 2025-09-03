@@ -17,7 +17,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), nullable=False)
 
-    school_id = db.Column(db.Integer, db.ForeignKey("School.school_id"), nullable=False)
+    school_id = db.Column(db.Integer, db.ForeignKey("school.school_id"), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     # Postモデルとのリレーションシップを定義
     posts = db.relationship("Post", backref="author", lazy=True)
@@ -50,18 +50,6 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     scope = db.Column(db.String(50), nullable=False)
-
-class School(db.Model):
-    __tablename__ = "School"
-    school_id = db.Column(db.Integer, primary_key=True)
-    school_name = db.Column(db.String(100), nullable=False)
-    departments = db.relationship("Department", backref="school", lazy=True)
-
-class Department(db.Model):
-    __tablename__ = "Department"
-    department_id = db.Column(db.Integer, primary_key=True)
-    department_name = db.Column(db.String(100), nullable=False)
-    school_id = db.Column(db.Integer, db.ForeignKey("School.school_id"), nullable=False)
 
 @app.route("/")
 def index():
