@@ -6,14 +6,18 @@
 </head>
 <body>
 <h1>ユーザー情報入力</h1>
-<form id="signupForm" method="POST" action="/signup">
+<form id="signupForm" method="POST" action="/create_account">
     <div>
     <label for="full_name">氏名</label><br>
-    <input type="text" id="full_name" name="full_name" required>
+    <input type="text" id="name" name="name" required>
     </div>
     <div>
     <label for="student_id">学籍番号</label><br>
     <input type="text" id="student_id" name="student_id" required>
+    </div>
+    <div>
+    <label for="year">学年</label><br>
+    <input type="number" id="year" name="year" max="4" min="1" required>
     </div>
 
     <!-- 所属校: DBから取得 -->
@@ -27,15 +31,13 @@
     </select>
     </div>
 
-<div>
-<label for="department">学科</label><br>
-<select id="department" name="department" required>
-    <option value="" disabled selected>選択してください</option>
-    {% for dept in departments %}
-    <option value="{{ dept.department_id }}">{{ dept.department_name }}</option>
-    {% endfor %}
-</select>
-</div>
+    <div>
+    <label for="department">学科</label><br>
+    <select id="department" name="department" required>
+        <option value="" disabled selected>選択してください</option>
+    </select>
+    </div>
+
 
 
     <div>
@@ -61,6 +63,27 @@
         event.preventDefault();
     }
     });
+
+document.getElementById("school").addEventListener("change", function() {
+    const schoolId = this.value;
+    const deptSelect = document.getElementById("department");
+
+    
+    deptSelect.innerHTML = '<option value="" disabled selected>選択してください</option>';
+
+    if (schoolId) {
+        fetch(`/api/departments?school_id=${schoolId}`)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(dept => {
+                const option = document.createElement("option");
+                option.value = dept.department_id;
+                option.textContent = dept.department_name;
+                deptSelect.appendChild(option);
+            });
+        });
+    }
+});
 </script>
 </body>
 </html>
