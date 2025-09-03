@@ -99,7 +99,7 @@ def home():
 def school_wide_board():
     if "role" in session and session["role"] == "student":
         # 公開範囲が'school_wide'の投稿をすべて取得
-        posts = Post.query.filter_by(scope="school_wide").order_by(Post.created_at.desc()).all()
+        posts = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).all()
         return render_template("home.html", user=session["name"], posts=posts, board_title="校舎間掲示板")
     return redirect(url_for("login"))
 
