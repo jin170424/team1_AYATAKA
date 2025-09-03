@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -43,7 +44,7 @@ class School(db.Model):
     school_name = db.Column(db.String(100), nullable=False)
 
 class Post(db.Model):
-    __tablename__ = "Post"
+    __tablename__ = "post"
     post_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -98,7 +99,7 @@ def home():
 def school_wide_board():
     if "role" in session and session["role"] == "student":
         # 公開範囲が'school_wide'の投稿をすべて取得
-        posts = Post.query.filter_by(scope="school_wide").order_by(Post.created_at.desc()).all()
+        posts = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).all()
         return render_template("home.html", user=session["name"], posts=posts, board_title="校舎間掲示板")
     return redirect(url_for("login"))
 
@@ -130,24 +131,39 @@ def logout():
 @app.route("/create_account", methods=["GET", "POST"])
 def create_account():
     if request.method == "POST":
+        name = request.form["name"]
         student_id = request.form["student_id"]
-        name = request.form["full_name"]
-        password = request.form["password"]
         school_id = request.form["school"]
         department_id = request.form["department"]
+        password = request.form["password"]
+        year = request.form["year"]
+        
+        hashed_password = generate_password_hash(password)
 
         new_user = User(
-            student_id=student_id,
-            password_hash=password,   # 本番環境ではハッシュ化する
             name=name,
+            student_id=student_id,
             school_id=school_id,
             department_id=department_id,
+            password_hash=hashed_password,
+            year=year,
             role="student"
         )
+
         db.session.add(new_user)
         db.session.commit()
 
-    return render_template("Create_Account.html")
+        return redirect(url_for("user_management"))   
+
+    
+    schools = School.query.all()
+    departments = Department.query.all()
+    return render_template(
+        "Create_Account.html",
+        schools=schools,
+        departments=departments
+    )
+
 
 @app.route("/user_management/select", methods=["GET", "POST"])
 def user_management_select():
@@ -187,7 +203,7 @@ def user_management():
     if year and year != -1:  # -1 = 全学年
         query = query.filter_by(year=year)
 
-    users = query.all()
+    users = query.order_by(User.student_id.asc()).all()
     return render_template("user_management.html", users=users)
 
 @app.route("/api/departments")
