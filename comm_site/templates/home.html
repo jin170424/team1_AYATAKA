@@ -38,7 +38,7 @@
 </style>
 
 <div class="container">
-    <h2>ホーム掲示板（学生用）</h2>
+    <h2>{{ board_title if board_title else 'ホーム掲示板' }}</h2>
     <p>ようこそ、{{ user }}さん。</p>
 
     <div class="post-list">
@@ -60,7 +60,8 @@
     </div>
 
     <div style="margin-top: 20px;">
-        <a href="{{ url_for('home') }}">掲示板</a> |
+        <a href="{{ url_for('school_wide_board') }}">校舎間掲示板</a> |
+        <a href="{{ url_for('school_specific_board') }}">校舎別掲示板</a> |
         <a href="{{ url_for('login') }}">Q&A</a>
     </div>
 </div>

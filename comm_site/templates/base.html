@@ -8,7 +8,15 @@
 <body>
     <nav>
         {% if session.name %}
-        <p>ようこそ, {{ session.name }}さん</p>
+        <div class="user-info-container">
+            <p>ようこそ, {{ session.name }}さん</p>
+            <p class="user-info">
+                {{ session.student_id }} | 
+                {{ session.school_name }} | 
+                {{ session.department_name }} | 
+                {{ session.year }}年
+            </p>
+        </div>
         <a href="{{ url_for('logout') }}">ログアウト</a>
         {% endif %}
     </nav>
