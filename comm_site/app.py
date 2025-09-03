@@ -5,11 +5,12 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
 
-##Postgres接続
+# ====== 既存の設定 ======
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+# ====== 既存のモデル ======
 class User(db.Model):
     __tablename__ = "User"
     user_id = db.Column(db.Integer, primary_key=True)
@@ -19,7 +20,6 @@ class User(db.Model):
 
     school_id = db.Column(db.Integer, db.ForeignKey("school.school_id"), nullable=False)
     role = db.Column(db.String(20), nullable=False)
-    # Postモデルとのリレーションシップを定義
     posts = db.relationship("Post", backref="author", lazy=True)
     # SchoolとDepartmentとのリレーションシップを定義
     school = db.relationship("School", backref="users", lazy=True)
@@ -126,6 +126,28 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+# ====== 追加: アカウント作成用ルート ======
+@app.route("/create_account", methods=["GET", "POST"])
+def create_account():
+    if request.method == "POST":
+        student_id = request.form["student_id"]
+        name = request.form["full_name"]
+        password = request.form["password"]
+        school_id = request.form["school"]
+        department_id = request.form["department"]
+
+        new_user = User(
+            student_id=student_id,
+            password_hash=password,   # 本番環境ではハッシュ化する
+            name=name,
+            school_id=school_id,
+            department_id=department_id,
+            role="student"
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+    return render_template("Create_Account.html")
 
 @app.route("/user_management/select", methods=["GET", "POST"])
 def user_management_select():
