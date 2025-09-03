@@ -1,7 +1,68 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>ホーム掲示板（学生用）</h2>
-<p>ここに投稿一覧を表示する予定。</p>
-<a href="{{ url_for('home') }}">掲示板</a> |
-<a href="{{ url_for('login') }}">Q&A</a>
+<style>
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .post-list {
+        width: 100%;
+        max-width: 800px;
+        margin-top: 20px;
+    }
+
+    .post-box {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .post-box p {
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .post-box small {
+        display: block;
+        margin-top: 10px;
+        color: #6c757d;
+        text-align: right;
+    }
+</style>
+
+<div class="container">
+    <h2>{{ board_title if board_title else 'ホーム掲示板' }}</h2>
+    <p>ようこそ、{{ user }}さん。</p>
+
+    <div class="post-list">
+        {% if posts %}
+            {% for post in posts %}
+                <div class="post-box" id="post-{{ post.post_id }}">
+                    <p>{{ post.content }}</p>
+                    <small>
+                        投稿者: {{ post.author.name if post.author else '不明' }} |
+                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                    </small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="post-box">
+                <p>現在、投稿はありません。</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="{{ url_for('school_wide_board') }}">校舎間掲示板</a> |
+        <a href="{{ url_for('school_specific_board') }}">校舎別掲示板</a> |
+        <a href="{{ url_for('login') }}">Q&A</a>
+    </div>
+</div>
 {% endblock %}
