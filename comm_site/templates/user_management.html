@@ -58,9 +58,11 @@
                     <a href="#" class="btn btn-sm btn-warning">
                         <i class="fa fa-edit"></i> 編集
                     </a>
-                    <a href="#" class="btn btn-sm btn-danger">
-                        <i class="fa fa-trash"></i> 削除
-                    </a>
+                    <form method="post" action="{{ url_for('delete_user', user_id=user.user_id) }}" class="d-inline" onsubmit="return confirmDelete(this);">
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="fa fa-trash"></i> 削除
+                        </button>
+                    </form>
                     <a href="#" class="btn btn-sm btn-secondary">
                         <i class="fa fa-key"></i> パスワードリセット
                     </a>
@@ -69,7 +71,12 @@
             {% endfor %}
         </tbody>
     </table>
+    <script>
+        function confirmDelete(form) {
+            return confirm('本当にこのユーザーを削除しますか？この操作は取り消せません。');
+        }
 
+    </script>
     <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">管理メニューへ戻る</a>
 
 </body>

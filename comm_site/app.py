@@ -206,6 +206,28 @@ def user_management():
     users = query.order_by(User.student_id.asc()).all()
     return render_template("user_management.html", users=users)
 
+
+@app.route("/user_management/delete/<int:user_id>", methods=["POST"])
+def delete_user(user_id):
+    # 管理者権限チェック
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for("user_management"))
+
+    # 自分自身のアカウントは削除させない
+    if session.get("user_id") == user.user_id:
+        return redirect(url_for("user_management"))
+
+    # 関連する投稿を先に削除（外部キー制約を回避）
+    Post.query.filter_by(user_id=user_id).delete()
+    db.session.delete(user)
+    db.session.commit()
+
+    return redirect(url_for("user_management"))
+
 @app.route("/api/departments")
 def api_departments():
     school_id = request.args.get("school_id", type=int)
