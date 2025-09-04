@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ユーザー管理 - 学校選択</title>
+</head>
+<body>
+    <h1>ユーザー管理 - 学校・学科・学年選択</h1>
+    <form method="POST">
+        <label>学校:</label>
+        <select name="school_id" id="school">
+            <option value="-1">吉田学園グループ全体</option>
+            {% for school in schools %}
+            <option value="{{ school.school_id }}">{{ school.school_name }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+
+        <label>学科:</label>
+        <select name="department_id" id="department">
+            <option value="-1">全学科</option>
+        </select>
+        <br><br>
+
+        <label>学年:</label>
+        <select name="year">
+            <option value="-1">全学年</option>
+            <option value="1">1年</option>
+            <option value="2">2年</option>
+            <option value="3">3年</option>
+            <option value="4">4年</option>
+        </select>
+        <br><br>
+
+        <button type="submit">表示</button>
+    </form>
+
+    <script>
+        document.getElementById("school").addEventListener("change", function() {
+            const schoolId = this.value;
+            const deptSelect = document.getElementById("department");
+            deptSelect.innerHTML = '<option value="-1">全学科</option>';
+            
+            fetch(`/api/departments?school_id=${schoolId}`)
+                .then(res => res.json())
+                .then(data => {
+                    data.forEach(d => {
+                        const opt = document.createElement("option");
+                        opt.value = d.department_id;
+                        opt.textContent = d.department_name;
+                        deptSelect.appendChild(opt);
+                    });
+                });
+        });
+    </script>
+</body>
+</html>
