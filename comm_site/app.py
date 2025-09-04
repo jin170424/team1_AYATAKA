@@ -142,24 +142,38 @@ def logout():
 @app.route("/create_account", methods=["GET", "POST"])
 def create_account():
     if request.method == "POST":
+        name = request.form["name"]
         student_id = request.form["student_id"]
-        name = request.form["full_name"]
-        password = request.form["password"]
         school_id = request.form["school"]
         department_id = request.form["department"]
+        password = request.form["password"]
+        year = request.form["year"]
+        
+        hashed_password = generate_password_hash(password)
 
         new_user = User(
-            student_id=student_id,
-            password_hash=password,
             name=name,
+            student_id=student_id,
             school_id=school_id,
             department_id=department_id,
+            password_hash=hashed_password,
+            year=year,
             role="student"
         )
+
         db.session.add(new_user)
         db.session.commit()
 
-    return render_template("Create_Account.html")
+        return redirect(url_for("user_management"))   
+
+    
+    schools = School.query.all()
+    departments = Department.query.all()
+    return render_template(
+        "Create_Account.html",
+        schools=schools,
+        departments=departments
+    )
 
 @app.route("/user_management/select", methods=["GET", "POST"])
 def user_management_select():
@@ -175,9 +189,9 @@ def user_management_select():
         year = request.form.get("year")
 
         return redirect(url_for("user_management",
-                                 school_id=school_id,
-                                 department_id=department_id,
-                                 year=year))
+                                school_id=school_id,
+                                department_id=department_id,
+                                year=year))
     return render_template("user_management_select.html", schools=schools)
 
 
