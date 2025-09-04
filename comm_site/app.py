@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -59,22 +59,23 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        student_id = request.form["username"]  
+        student_id = request.form["username"]
         password = request.form["password"]
 
         user = User.query.filter_by(student_id=student_id).first()
-        if user and user.password_hash == password:  
+        # stored password is hashed; verify using check_password_hash
+        if user and check_password_hash(user.password_hash, password) or user and user.password_hash == password:
             school_info = School.query.filter_by(school_id=user.school_id).first()
             department_info = Department.query.filter_by(department_id=user.department_id).first()
-            
-            session["user_id"] = user.user_id 
+
+            session["user_id"] = user.user_id
             session["student_id"] = user.student_id
             session["role"] = user.role
             session["name"] = user.name
             session["school_name"] = school_info.school_name if school_info else "不明"
             session["department_name"] = department_info.department_name if department_info else "不明"
-            session["year"] = user.year 
-            
+            session["year"] = user.year
+
             # student_idの1桁目を校舎識別子としてセッションに保存
             session["school_identifier"] = student_id[0]
 
@@ -227,6 +228,23 @@ def delete_user(user_id):
     db.session.commit()
 
     return redirect(url_for("user_management"))
+
+
+@app.route("/user_management/reset_password/<int:user_id>", methods=["POST"])
+def reset_password(user_id):
+    # 管理者のみ実行可
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for("user_management", msg="ユーザーが見つかりません"))
+
+    temp_password = user.student_id
+    user.password_hash = generate_password_hash(temp_password)
+    db.session.commit()
+
+    return redirect(url_for("user_management", msg=f"ユーザー {user.student_id} のパスワードをリセットしました（新しいパスワード: {temp_password}）"))
 
 @app.route("/api/departments")
 def api_departments():
