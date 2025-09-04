@@ -1,6 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+<<<<<<< HEAD
+=======
+from werkzeug.security import generate_password_hash, check_password_hash
+>>>>>>> origin/IPWINGKIN
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -62,7 +66,12 @@ def login():
         password = request.form["password"]
 
         user = User.query.filter_by(student_id=student_id).first()
+<<<<<<< HEAD
         if user and user.password_hash == password:
+=======
+        # stored password is hashed; verify using check_password_hash
+        if user and check_password_hash(user.password_hash, password) or user and user.password_hash == password:
+>>>>>>> origin/IPWINGKIN
             school_info = School.query.filter_by(school_id=user.school_id).first()
             department_info = Department.query.filter_by(department_id=user.department_id).first()
 
@@ -200,6 +209,48 @@ def user_management():
     users = query.order_by(User.student_id).all()
     return render_template("user_management.html", users=users)
 
+<<<<<<< HEAD
+=======
+
+@app.route("/user_management/delete/<int:user_id>", methods=["POST"])
+def delete_user(user_id):
+    # 管理者権限チェック
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for("user_management"))
+
+    # 自分自身のアカウントは削除させない
+    if session.get("user_id") == user.user_id:
+        return redirect(url_for("user_management"))
+
+    # 関連する投稿を先に削除（外部キー制約を回避）
+    Post.query.filter_by(user_id=user_id).delete()
+    db.session.delete(user)
+    db.session.commit()
+
+    return redirect(url_for("user_management"))
+
+
+@app.route("/user_management/reset_password/<int:user_id>", methods=["POST"])
+def reset_password(user_id):
+    # 管理者のみ実行可
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for("user_management", msg="ユーザーが見つかりません"))
+
+    temp_password = user.student_id
+    user.password_hash = generate_password_hash(temp_password)
+    db.session.commit()
+
+    return redirect(url_for("user_management", msg=f"ユーザー {user.student_id} のパスワードをリセットしました（新しいパスワード: {temp_password}）"))
+
+>>>>>>> origin/IPWINGKIN
 @app.route("/api/departments")
 def api_departments():
     school_id = request.args.get("school_id", type=int)
