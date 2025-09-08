@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -136,6 +136,67 @@ def notice_board():
         return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板")
     return redirect(url_for("login"))
 
+
+#プロフィール確認画面
+@app.route("/profile")
+def profile_view():
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    
+    # セッション情報からユーザー情報を取得
+    user = User.query.get(session["user_id"])
+    
+    if not user:
+        return redirect(url_for("logout"))
+        
+    return render_template("profile.html", user=user)
+
+#設定画面
+@app.route("/settings")
+def settings():
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
+    # 必要に応じて設定ページ用のロジックを追加
+    return render_template("settings.html")
+
+@app.route("/settings/change_password", methods=["GET", "POST"])
+def change_password():
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    if not user:
+        return redirect(url_for("logout"))
+
+    if request.method == "POST":
+        current_password = request.form.get("current_password")
+        new_password = request.form.get("new_password")
+        confirm_password = request.form.get("confirm_password")
+
+        # 現在のパスワードが正しいか検証
+        if not check_password_hash(user.password_hash, current_password):
+            flash("現在のパスワードが正しくありません。", "error")
+            return redirect(url_for("change_password"))
+            
+        # 新しいパスワードと確認用パスワードが一致するか検証
+        if new_password != confirm_password:
+            flash("新しいパスワードが一致しません。", "error")
+            return redirect(url_for("change_password"))
+
+        # 新しいパスワードをハッシュ化して保存
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        # 成功メッセージ
+        flash("パスワードが正常に変更されました。", "success")
+        return redirect(url_for("settings"))
+
+    # GETリクエストの場合、フォームを表示
+    return render_template("change_password.html")
 
 @app.route("/admin")
 def admin_dashboard():
