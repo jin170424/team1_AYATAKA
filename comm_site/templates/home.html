@@ -61,7 +61,7 @@
 
     <div style="margin-top: 20px;">
         <a href="{{ url_for('school_wide_board') }}">校舎間掲示板</a> |
-        <a href="{{ url_for('school_specific_board') }}">校舎別掲示板</a> |
+        <a href="{{ url_for('school_specific_board') }}">{{ session.get('school_name', '用掲示板') }}</a> |
         <a href="{{ url_for('notice_board') }}">通知用掲示板</a> |
         <a href="{{ url_for('login') }}">Q&A</a>
     </div>
