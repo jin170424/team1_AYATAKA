@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CommSite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         /* CSS for dropdown menu */
@@ -49,28 +51,41 @@
         }
     </style>
 </head>
-<body>
-    <nav>
-        {% if session.name %}
-        <div class="user-info-container">
-            <div class="dropdown">
-                <button class="dropbtn">ようこそ, {{ session.name }}さん ▼</button>
-                <div class="dropdown-content">
-                    <a href="{{ url_for('profile_view') }}">プロフィール閲覧</a>
-                    <a href="{{ url_for('settings') }}">設定</a>
-                    <a href="{{ url_for('logout') }}">ログアウト</a>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('index') }}" class="text-2xl font-bold text-indigo-600">CommSite</a>
                 </div>
+                {% if session.name %}
+                <div class="flex items-center">
+                    <div class="relative group">
+                        <button class="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 focus:outline-none">
+                            <span>ようこそ, {{ session.name }}さん</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div class="absolute right-0 w-48 mt-2 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out">
+                            <a href="{{ url_for('profile_view') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">プロフィール閲覧</a>
+                            <a href="{{ url_for('settings') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">設定</a>
+                            <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">ログアウト</a>
+                        </div>
+                    </div>
+                    <div class="ml-4 text-sm text-gray-600">
+                        <span class="px-2">{{ session.student_id }}</span>|
+                        <span class="px-2">{{ session.school_name }}</span>|
+                        <span class="px-2">{{ session.department_name }}</span>|
+                        <span class="px-2">{{ session.year }}年</span>
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            <p class="user-info">
-                {{ session.student_id }} | 
-                {{ session.school_name }} | 
-                {{ session.department_name }} | 
-                {{ session.year }}年
-            </p>
         </div>
-        {% endif %}
     </nav>
-    <hr>
-    {% block content %}{% endblock %}
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {% block content %}{% endblock %}
+    </main>
 </body>
 </html>
