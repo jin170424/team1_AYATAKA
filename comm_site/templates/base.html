@@ -4,12 +4,63 @@
     <meta charset="UTF-8">
     <title>CommSite</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* CSS for dropdown menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .user-info-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info-container .user-info {
+            margin: 0;
+            padding: 0;
+            font-size: 0.9em;
+            color: #555;
+        }
+    </style>
 </head>
 <body>
     <nav>
         {% if session.name %}
         <div class="user-info-container">
-            <p>ようこそ, {{ session.name }}さん</p>
+            <div class="dropdown">
+                <button class="dropbtn">ようこそ, {{ session.name }}さん ▼</button>
+                <div class="dropdown-content">
+                    <a href="{{ url_for('profile_view') }}">プロフィール閲覧</a>
+                    <a href="{{ url_for('settings') }}">設定</a>
+                    <a href="{{ url_for('logout') }}">ログアウト</a>
+                </div>
+            </div>
             <p class="user-info">
                 {{ session.student_id }} | 
                 {{ session.school_name }} | 
@@ -17,7 +68,6 @@
                 {{ session.year }}年
             </p>
         </div>
-        <a href="{{ url_for('logout') }}">ログアウト</a>
         {% endif %}
     </nav>
     <hr>

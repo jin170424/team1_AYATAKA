@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>プロフィール</h2>
+    <p><strong>名前:</strong> {{ user.name }}</p>
+    <p><strong>学籍番号:</strong> {{ user.student_id }}</p>
+    <p><strong>校舎:</strong> {{ user.school.school_name }}</p>
+    <p><strong>学科:</strong> {{ user.department.department_name if user.department else 'なし' }}</p>
+    <p><strong>学年:</strong> {{ user.year }}</p>
+    {% endblock %}
