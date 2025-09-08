@@ -100,9 +100,12 @@ def home():
 @app.route("/home/school_wide")
 def school_wide_board():
     if "role" in session and session["role"] == "student":
-        # 公開範囲が'public'の投稿をすべて取得
         posts = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="校舎間掲示板")
+        return render_template("home.html",
+                               user=session["name"],
+                               posts=posts,
+                               board_title="校舎間掲示板",
+                               current_scope="public")  # ← 追加
     return redirect(url_for("login"))
 
 
@@ -113,18 +116,20 @@ def school_specific_board():
         if user_school_id is None:
             return redirect(url_for("login"))
 
-        # スコープを'school' + school_idの形式で設定
         school_scope = f"school{user_school_id}"
 
-        # 指定されたスコープの投稿を取得
         posts = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).all()
 
-        # 掲示板タイトル用にschool_nameを取得
         school_info = School.query.filter_by(school_id=user_school_id).first()
         board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
 
-        return render_template("home.html", user=session["name"], posts=posts, board_title=board_title)
+        return render_template("home.html",
+                               user=session["name"],
+                               posts=posts,
+                               board_title=board_title,
+                               current_scope=school_scope)  # ← 追加
     return redirect(url_for("login"))
+
 
 
 @app.route("/home/notice_board")
@@ -135,6 +140,34 @@ def notice_board():
         posts = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).all()
         return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板")
     return redirect(url_for("login"))
+
+@app.route("/post", methods=["POST"])
+def submit_post():
+    if "user_id" not in session or session["role"] != "student":
+        return redirect(url_for("login"))
+
+    content = request.form.get("content")
+    scope = request.form.get("scope")
+
+    if not content or not scope:
+        flash("投稿内容が不正です。", "error")
+        return redirect(url_for("home"))
+
+    new_post = Post(
+        user_id=session["user_id"],
+        content=content,
+        scope=scope
+    )
+    db.session.add(new_post)
+    db.session.commit()
+
+    # スコープに応じて掲示板にリダイレクト
+    if scope == "public":
+        return redirect(url_for("school_wide_board"))
+    elif scope.startswith("school"):
+        return redirect(url_for("school_specific_board"))
+    else:
+        return redirect(url_for("home"))
 
 
 #プロフィール確認画面
