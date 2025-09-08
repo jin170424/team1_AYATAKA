@@ -17,7 +17,7 @@
 
         <div class="mb-3">
             <label class="form-label">学籍番号</label>
-            <input type="text" name="student_id" class="form-control" value="{{ user.student_id }}" required>
+            <input type="text" name="student_id" pattern="\d{7}" title="学籍番号は7桁の数字で入力してください" maxlength="7" minlength="7" class="form-control" value="{{ user.student_id }}" required>
         </div>
 
         <div class="mb-3">
@@ -66,6 +66,12 @@
                 });
             });
         }
+        const studentField = document.querySelector("input[name='student_id']");
+        let currentValue = studentField.value;
+
+        let rest = currentValue.length > 1 ? currentValue.slice(1) : "00000";
+
+        studentField.value = schoolId + rest;
     });
     </script>
 

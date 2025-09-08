@@ -283,11 +283,16 @@ def edit_user(user_id):
     if request.method == "POST":
         # フォーム入力を更新
         user.name = request.form.get("name")
-        user.student_id = request.form.get("student_id")
+        student_id = request.form.get("student_id")
         school_id = request.form.get("school")
         department_id = request.form.get("department") or None
         year = request.form.get("year")
 
+        if student_id and school_id:
+            if len(student_id) > 1:
+                student_id = str(school_id) + student_id[1:]
+                
+        user.student_id = student_id
         user.school_id = int(school_id) if school_id else user.school_id
         user.department_id = int(department_id) if department_id else None
         user.year = int(year) if year else None
