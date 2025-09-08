@@ -13,7 +13,7 @@
     </div>
     <div>
     <label for="student_id">学籍番号</label><br>
-    <input type="text" id="student_id" name="student_id" required>
+    <input type="text" id="student_id" name="student_id" pattern="\d{7}" title="学籍番号は7桁の数字で入力してください" maxlength="7" minlength="7" required>
     </div>
     <div>
     <label for="year">学年</label><br>
@@ -52,6 +52,7 @@
     <br>
     <button type="submit">アカウント作成</button>
 </form>
+<a href="{{ url_for('user_management') }}">ユーザー管理へ戻る</a>
 
 <script>
     document.getElementById("signupForm").addEventListener("submit", function(event) {
