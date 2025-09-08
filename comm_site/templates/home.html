@@ -35,11 +35,33 @@
         color: #6c757d;
         text-align: right;
     }
+
+    .post-form textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .post-form button {
+        margin-top: 10px;
+    }
 </style>
 
 <div class="container">
     <h2>{{ board_title if board_title else 'ホーム掲示板' }}</h2>
     <p>ようこそ、{{ user }}さん。</p>
+
+    <!-- 投稿フォーム -->
+    {% if session["role"] == "student" %}
+    <div class="post-form" style="max-width: 800px; width: 100%;">
+        <form action="{{ url_for('submit_post') }}" method="POST">
+            <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required></textarea>
+            <input type="hidden" name="scope" value="{{ current_scope }}">
+            <button type="submit">投稿する</button>
+        </form>
+    </div>
+    {% endif %}
 
     <div class="post-list">
         {% if posts %}
