@@ -46,6 +46,29 @@
     .post-form button {
         margin-top: 10px;
     }
+
+    .comment-box {
+        margin-top: 10px;
+        padding-left: 15px;
+        border-left: 2px solid #ccc;
+    }
+
+    .comment-form textarea {
+        width: 100%;
+        margin-top: 5px;
+        border-radius: 5px;
+        padding: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .comment-form button {
+        margin-top: 5px;
+    }
+
+    .delete-button {
+        margin-top: 5px;
+        text-align: right;
+    }
 </style>
 
 <div class="container">
@@ -72,6 +95,34 @@
                         投稿者: {{ post.author.name if post.author else '不明' }} |
                         投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
                     </small>
+
+                    <!-- 投稿削除ボタン -->
+                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
+                    <div class="delete-button">
+                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
+                            <button type="submit">削除</button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <!-- コメント一覧 -->
+                    {% if post.comments %}
+                    <div class="comment-box">
+                        {% for comment in post.comments %}
+                        <div>
+                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>:
+                            {{ comment.content }}<br>
+                            <small style="color: #888;">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- コメント投稿フォーム -->
+                    <form class="comment-form" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
+                        <textarea name="comment_content" rows="2" placeholder="コメントを書く" required></textarea>
+                        <button type="submit">コメントする</button>
+                    </form>
                 </div>
             {% endfor %}
         {% else %}
