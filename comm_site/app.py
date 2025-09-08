@@ -52,6 +52,18 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     scope = db.Column(db.String(50), nullable=False)
 
+class Comment(db.Model):
+    __tablename__ = "comment"
+    comment_id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.post_id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    post = db.relationship("Post", backref="comments")
+    user = db.relationship("User", backref="comments")
+
+
 @app.route("/")
 def index():
     if "role" in session:
@@ -174,6 +186,62 @@ def submit_post():
         return redirect(url_for("school_specific_board"))
     else:
         return redirect(url_for("home"))
+
+@app.route("/post/delete/<int:post_id>", methods=["POST"])
+def delete_post(post_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    post = Post.query.get(post_id)
+
+    if not post:
+        flash("投稿が見つかりませんでした。", "error")
+        return redirect(url_for("home"))
+
+    # 削除権限の確認：本人または管理者
+    if post.user_id != session["user_id"] and session["role"] != "admin":
+        flash("削除権限がありません。", "error")
+        return redirect(url_for("home"))
+
+    # 関連コメントを削除
+    Comment.query.filter_by(post_id=post.post_id).delete()
+
+    db.session.delete(post)
+    db.session.commit()
+
+    flash("投稿を削除しました。", "success")
+    # スコープに応じてリダイレクト
+    if post.scope == "public":
+        return redirect(url_for("school_wide_board"))
+    elif post.scope.startswith("school"):
+        return redirect(url_for("school_specific_board"))
+    else:
+        return redirect(url_for("home"))
+
+@app.route("/comment/<int:post_id>", methods=["POST"])
+def add_comment(post_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    content = request.form.get("comment_content")
+    if not content:
+        flash("コメント内容を入力してください。", "error")
+        return redirect(request.referrer)
+
+    post = Post.query.get(post_id)
+    if not post:
+        flash("投稿が見つかりません。", "error")
+        return redirect(url_for("home"))
+
+    comment = Comment(
+        post_id=post_id,
+        user_id=session["user_id"],
+        content=content
+    )
+    db.session.add(comment)
+    db.session.commit()
+
+    return redirect(request.referrer)
 
 
 #プロフィール確認画面
