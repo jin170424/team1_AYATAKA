@@ -72,6 +72,7 @@ def login():
             session["student_id"] = user.student_id
             session["role"] = user.role
             session["name"] = user.name
+            session["school_id"] = user.school_id
             session["school_name"] = school_info.school_name if school_info else "不明"
             session["department_name"] = department_info.department_name if department_info else "不明"
             session["year"] = user.year
@@ -94,7 +95,7 @@ def login():
 # ユーザーをデフォルトの掲示板にリダイレクトするダミールート
 @app.route("/home")
 def home():
-    return redirect(url_for("school_wide_board"))
+    return redirect(url_for("school_specific_board"))
 
 @app.route("/home/school_wide")
 def school_wide_board():
@@ -104,18 +105,27 @@ def school_wide_board():
         return render_template("home.html", user=session["name"], posts=posts, board_title="校舎間掲示板")
     return redirect(url_for("login"))
 
+
 @app.route("/home/school_specific")
 def school_specific_board():
     if "role" in session and session["role"] == "student":
-        school_identifier = session.get("school_identifier")
-        # 投稿者のstudent_idがログインユーザーの校舎識別子と一致する投稿を取得
-        # Joinを使用してPostとUserテーブルを結合し、Userのstudent_idをフィルタリング
-        posts = db.session.query(Post).join(User).filter(
-            Post.scope == "school_specific",
-            User.student_id.like(school_identifier + "%")
-        ).order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="校舎別掲示板")
+        user_school_id = session.get("school_id")
+        if user_school_id is None:
+            return redirect(url_for("login"))
+
+        # スコープを'school' + school_idの形式で設定
+        school_scope = f"school{user_school_id}"
+
+        # 指定されたスコープの投稿を取得
+        posts = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).all()
+
+        # 掲示板タイトル用にschool_nameを取得
+        school_info = School.query.filter_by(school_id=user_school_id).first()
+        board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
+
+        return render_template("home.html", user=session["name"], posts=posts, board_title=board_title)
     return redirect(url_for("login"))
+
 
 @app.route("/home/notice_board")
 def notice_board():
@@ -164,7 +174,7 @@ def create_account():
         db.session.add(new_user)
         db.session.commit()
 
-        return redirect(url_for("user_management"))   
+        return redirect(url_for("user_management"))  
 
     
     schools = School.query.all()
@@ -189,9 +199,9 @@ def user_management_select():
         year = request.form.get("year")
 
         return redirect(url_for("user_management",
-                                school_id=school_id,
-                                department_id=department_id,
-                                year=year))
+                                 school_id=school_id,
+                                 department_id=department_id,
+                                 year=year))
     return render_template("user_management_select.html", schools=schools)
 
 
