@@ -66,6 +66,12 @@ class Comment(db.Model):
 
 @app.route("/")
 def index():
+    if "role" in session:
+        role = session.get("role")
+        if role == "admin":
+            return redirect(url_for("admin_dashboard"))
+        if role == "student":
+            return redirect(url_for("home"))
     return redirect(url_for("login"))
 
 @app.route("/login", methods=["GET", "POST"])
