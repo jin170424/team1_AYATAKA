@@ -215,16 +215,20 @@ def user_management():
     year = request.args.get("year", type=int)
 
     query = User.query.filter(User.role == "student")
-
-    if school_id and school_id != -1:
+    
+    school_name = "吉田学園グループ全体"
+    if school_id is not None and school_id != -1:
         query = query.filter_by(school_id=school_id)
+        school = School.query.get(school_id)
+        if school:
+            school_name = school.school_name
     if department_id and department_id != -1:
         query = query.filter_by(department_id=department_id)
     if year and year != -1:
         query = query.filter_by(year=year)
 
     users = query.order_by(User.student_id).all()
-    return render_template("user_management.html", users=users)
+    return render_template("user_management.html", users=users, school_name=school_name)
 
 
 @app.route("/user_management/delete/<int:user_id>", methods=["POST"])
@@ -264,6 +268,38 @@ def reset_password(user_id):
     db.session.commit()
 
     return redirect(url_for("user_management", msg=f"ユーザー {user.student_id} のパスワードをリセットしました（新しいパスワード: {temp_password}）"))
+
+
+@app.route("/user_management/edit/<int:user_id>", methods=["GET", "POST"])
+def edit_user(user_id):
+    # 管理者権限チェック
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for("user_management", msg="ユーザーが見つかりません"))
+
+    if request.method == "POST":
+        # フォーム入力を更新
+        user.name = request.form.get("name")
+        user.student_id = request.form.get("student_id")
+        school_id = request.form.get("school")
+        department_id = request.form.get("department") or None
+        year = request.form.get("year")
+
+        user.school_id = int(school_id) if school_id else user.school_id
+        user.department_id = int(department_id) if department_id else None
+        user.year = int(year) if year else None
+
+        db.session.commit()
+
+        return redirect(url_for("user_management", msg=f"ユーザー {user.student_id} を更新しました"))
+
+    # GET: 編集フォーム表示
+    schools = School.query.all()
+    departments = Department.query.filter_by(school_id=user.school_id).all()
+    return render_template("edit_user.html", user=user, schools=schools, departments=departments)
 
 @app.route("/api/departments")
 def api_departments():
