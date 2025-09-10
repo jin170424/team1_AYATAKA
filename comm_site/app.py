@@ -2,6 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, session, redirect, url_for
+from flask_socketio import SocketIO, emit
+
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -526,6 +529,21 @@ def api_departments():
     school_id = request.args.get("school_id", type=int)
     departments = Department.query.filter_by(school_id=school_id).all()
     return [{"department_id": d.department_id, "department_name": d.department_name} for d in departments]
+
+# ===== Q&A 学生画面 =====
+@app.route("/qa")
+def qa_student():
+    if "role" not in session or session["role"] != "student":
+        return redirect(url_for("login"))
+    return render_template("qa_student.html", user=session["name"])
+
+# ===== Q&A 管理者画面 =====
+@app.route("/admin/qa")
+def qa_admin():
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+    return render_template("qa_admin.html", user=session["name"])
+
 
 if __name__ == "__main__":
     with app.app_context():

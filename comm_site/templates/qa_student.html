@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Q&Aチャット</title>
+    <style>
+        body {
+            margin: 20px;
+            background-color: #f9f9f9;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            background: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            text-align: center;
+        }
+
+        textarea {
+            width: 96%;
+            height: 120px;
+            border: 1px solid #123;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 14px;
+            resize: none;
+        }
+
+        .button-area {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 5px 16px;
+            font-size: 14px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #004c99;
+        }
+
+        .output {
+            width: 96%;
+            height: 300px;
+            border: 1px solid #123;
+            padding: 10px;
+            font-size: 14px;
+            background-color: #fff;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+
+        .chat-q,
+        .chat-a {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+            clear: both;
+        }
+
+        .chat-q {
+            background-color: #d0ebff;
+            float: left;
+            text-align: left;
+            border-bottom-left-radius: 0;
+        }
+
+        .chat-a {
+            background-color: #e0ffd8;
+            float: right;
+            text-align: left;
+            border-bottom-right-radius: 0;
+        }
+
+        .output::after {
+            content: "";
+            display: block;
+            clear: both;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Q & Aチャット</h1>
+        <textarea id="question" placeholder="質問を入力"></textarea>
+        <div class="button-area">
+            <button id="sendBtn">送信</button>
+        </div>
+        <div class="output" id="answer"></div>
+    </div>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+    const socket = io();  // 同じサーバーに接続
+
+    // メッセージ送信
+    function sendMessage() {
+        const msg = document.getElementById("msg").value;
+        socket.emit("student_message", msg);
+    }
+
+    // メッセージ受信
+    socket.on("new_message", function(data) {
+        const chat = document.getElementById("chat");
+        chat.innerHTML += `<p><b>${data.from}:</b> ${data.message}</p>`;
+    });
+</script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const sendBtn = document.getElementById("sendBtn");
+            const questionInput = document.getElementById("question");
+            const answerDiv = document.getElementById("answer");
+
+            // WebSocket接続
+            const ws = new WebSocket("ws://localhost:8765");
+
+            ws.onopen = () => {
+                console.log("サーバーに接続しました");
+                ws.send("user");
+            };
+
+            ws.onmessage = (event) => {
+                const aElem = document.createElement("div");
+                aElem.classList.add("chat-a");
+                aElem.textContent = "回答: " + event.data;
+                answerDiv.appendChild(aElem);
+                answerDiv.scrollTop = answerDiv.scrollHeight;
+            };
+
+            function sendQuestion() {
+                const question = questionInput.value.trim();
+                if (!question) {
+                    alert("質問を入力してください。");
+                    return;
+                }
+
+                ws.send(question);
+
+                const qElem = document.createElement("div");
+                qElem.classList.add("chat-q");
+                qElem.textContent = "質問: " + question;
+                answerDiv.appendChild(qElem);
+                answerDiv.scrollTop = answerDiv.scrollHeight;
+
+                questionInput.value = "";
+            }
+
+            // ボタンクリックで送信
+            sendBtn.addEventListener("click", sendQuestion);
+
+            // Enterキーでも送信
+            questionInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendQuestion();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
