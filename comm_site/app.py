@@ -4,10 +4,15 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, session, redirect, url_for
 from flask_socketio import SocketIO, emit
-
+from flask import Flask, session, render_template
+from flask_socketio import SocketIO, emit, join_room, leave_room
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
+socketio = SocketIO(app, manage_session=False)  # Flask session をそのまま利用可能
+
+connected_users = {}  # {user_id: sid}
+admin_users = set()
 
 # ====== 既存の設定 ======
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
@@ -544,8 +549,52 @@ def qa_admin():
         return redirect(url_for("login"))
     return render_template("qa_admin.html", user=session["name"])
 
+connected_users = {}  # user_id -> sid
+admin_users = set()   # sid のセット
+
+@socketio.on("connect")
+def handle_connect():
+    user_id = session.get("user_id")
+    role = session.get("role")
+    sid = request.sid
+
+    if not user_id or not role:
+        return False  # 接続拒否
+
+    if role == "admin":
+        admin_users.add(sid)
+    else:
+        connected_users[user_id] = sid  # 学生は user_id で管理
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    sid = request.sid
+    admin_users.discard(sid)
+    for uid, usid in list(connected_users.items()):
+        if usid == sid:
+            del connected_users[uid]
+
+@socketio.on("send_question")
+def handle_question(data):
+    user_id = session.get("user_id")
+    message = data.get("message")
+    # 管理者全員に送信
+    for admin_sid in admin_users:
+        emit("receive_question", {"user_id": user_id, "message": message}, to=admin_sid)
+
+@socketio.on("send_answer")
+def handle_answer(data):
+    target_user_id = data.get("user_id")
+    message = data.get("message")
+    # target_user_id が接続されている場合のみ送信
+    sid = connected_users.get(int(target_user_id))
+    if sid:
+        emit("receive_answer", {"message": message}, to=sid)
+
+
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+

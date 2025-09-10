@@ -111,74 +111,50 @@
         <div class="output" id="answer"></div>
     </div>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-<script>
-    const socket = io();  // 同じサーバーに接続
-
-    // メッセージ送信
-    function sendMessage() {
-        const msg = document.getElementById("msg").value;
-        socket.emit("student_message", msg);
-    }
-
-    // メッセージ受信
-    socket.on("new_message", function(data) {
-        const chat = document.getElementById("chat");
-        chat.innerHTML += `<p><b>${data.from}:</b> ${data.message}</p>`;
-    });
-</script>
-
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const sendBtn = document.getElementById("sendBtn");
-            const questionInput = document.getElementById("question");
-            const answerDiv = document.getElementById("answer");
+        const socket = io(); // Flask-SocketIO に接続
 
-            // WebSocket接続
-            const ws = new WebSocket("ws://localhost:8765");
+        const sendBtn = document.getElementById("sendBtn");
+        const questionInput = document.getElementById("question");
+        const answerDiv = document.getElementById("answer");
 
-            ws.onopen = () => {
-                console.log("サーバーに接続しました");
-                ws.send("user");
-            };
+        function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
 
-            ws.onmessage = (event) => {
-                const aElem = document.createElement("div");
-                aElem.classList.add("chat-a");
-                aElem.textContent = "回答: " + event.data;
-                answerDiv.appendChild(aElem);
-                answerDiv.scrollTop = answerDiv.scrollHeight;
-            };
+            // サーバーに送信
+            socket.emit("send_question", { message: question });
 
-            function sendQuestion() {
-                const question = questionInput.value.trim();
-                if (!question) {
-                    alert("質問を入力してください。");
-                    return;
-                }
+            // チャット画面に表示
+            const qElem = document.createElement("div");
+            qElem.classList.add("chat-q");
+            qElem.textContent = "質問: " + question;
+            answerDiv.appendChild(qElem);
+            answerDiv.scrollTop = answerDiv.scrollHeight;
 
-                ws.send(question);
+            questionInput.value = "";
+        }
 
-                const qElem = document.createElement("div");
-                qElem.classList.add("chat-q");
-                qElem.textContent = "質問: " + question;
-                answerDiv.appendChild(qElem);
-                answerDiv.scrollTop = answerDiv.scrollHeight;
+        sendBtn.addEventListener("click", sendQuestion);
 
-                questionInput.value = "";
+        questionInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendQuestion();
             }
-
-            // ボタンクリックで送信
-            sendBtn.addEventListener("click", sendQuestion);
-
-            // Enterキーでも送信
-            questionInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendQuestion();
-                }
-            });
         });
+
+        socket.on("receive_answer", function (data) {
+            const answerDiv = document.getElementById("answer");
+            const aElem = document.createElement("div");
+            aElem.classList.add("chat-a");
+            aElem.textContent = "回答: " + data.message;
+            answerDiv.appendChild(aElem);
+            answerDiv.scrollTop = answerDiv.scrollHeight;
+        });
+
     </script>
+
 </body>
 
 </html>
