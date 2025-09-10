@@ -152,15 +152,17 @@ def school_specific_board():
 @app.route("/home/notice_board")
 def notice_board():
     if "role" in session and session["role"] == "student":
-        # 'notice1'から'notice8'までのスコープに合致する投稿を取得
-        notice_scopes = [f'notice{i}' for i in range(0, 8)]
-        # ログイン中のユーザーの校舎IDも取得
         user_school_id = session.get("school_id")
-        if user_school_id:
-            notice_scopes.append(f'notice{user_school_id}')
+        notice_scopes = []
+        if user_school_id is not None:
+            notice_scopes.append(f'notice{user_school_id}') # ユーザーの所属校舎への通知
+
+        # school_idが0のユーザーにのみnotice0を表示
+        if user_school_id == 0:
+            notice_scopes.append('notice0') 
 
         posts = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板", current_scope="notice0") # current_scopeを渡す
+        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板", current_scope="notice0")
     return redirect(url_for("login"))
 
 @app.route("/post", methods=["POST"])

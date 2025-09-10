@@ -115,10 +115,12 @@
                     </div>
                     {% endif %}
 
+                    {% if current_scope != 'notice0' %}
                     <form class="comment-form" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
                         <textarea name="comment_content" rows="2" placeholder="コメントを書く" required></textarea>
                         <button type="submit">コメントする</button>
                     </form>
+                    {% endif %}
                 </div>
             {% endfor %}
         {% else %}
