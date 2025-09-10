@@ -2,32 +2,43 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ユーザー編集</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-4">
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-lg mx-auto bg-white rounded-lg shadow-lg p-8">
+            <h1 class="text-2xl font-bold text-center text-gray-900 mb-8">ユーザー編集</h1>
 
-    <h1>ユーザー編集</h1>
+            <form method="post" action="{{ url_for('edit_user', user_id=user.user_id) }}" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">氏名</label>
+                    <input type="text" name="name" 
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        value="{{ user.name }}" required>
+                </div>
 
-    <form method="post" action="{{ url_for('edit_user', user_id=user.user_id) }}">
-        <div class="mb-3">
-            <label class="form-label">氏名</label>
-            <input type="text" name="name" class="form-control" value="{{ user.name }}" required>
-        </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">学籍番号</label>
+                    <input type="text" name="student_id" pattern="\d{7}" 
+                        title="学籍番号は7桁の数字で入力してください" maxlength="7" minlength="7" 
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        value="{{ user.student_id }}" required>
+                </div>
 
-        <div class="mb-3">
-            <label class="form-label">学籍番号</label>
-            <input type="text" name="student_id" pattern="\d{7}" title="学籍番号は7桁の数字で入力してください" maxlength="7" minlength="7" class="form-control" value="{{ user.student_id }}" required>
-        </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">学年</label>
+                    <input type="number" name="year" 
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        value="{{ user.year or '' }}" min="1" max="4">
+                </div>
 
-        <div class="mb-3">
-            <label class="form-label">学年</label>
-            <input type="number" name="year" class="form-control" value="{{ user.year or '' }}" min="1" max="4">
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">所属校</label>
-            <select name="school" id="school" class="form-select" required>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">所属校</label>
+                    <select name="school" id="school" 
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        required>
                 <option value="" disabled>選択してください</option>
                 {% for school in schools %}
                 <option value="{{ school.school_id }}" {% if user.school_id == school.school_id %}selected{% endif %}>{{ school.school_name }}</option>
@@ -35,19 +46,28 @@
             </select>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">学科</label>
-            <select name="department" id="department" class="form-select">
-                <option value="" disabled>選択してください</option>
-                {% for dept in departments %}
-                <option value="{{ dept.department_id }}" {% if user.department_id == dept.department_id %}selected{% endif %}>{{ dept.department_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+                <div>
+                    <label for="department" class="block text-sm font-medium text-gray-700">学科</label>
+                    <select name="department" id="department" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="" disabled>選択してください</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.department_id }}" {% if user.department_id == dept.department_id %}selected{% endif %}>{{ dept.department_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <button type="submit" class="btn btn-primary">保存</button>
-        <a href="{{ url_for('user_management') }}" class="btn btn-secondary">キャンセル</a>
-    </form>
+                <div class="flex space-x-4 pt-4">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                        保存
+                    </button>
+                    <a href="{{ url_for('user_management') }}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md text-center shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200">
+                        キャンセル
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
     document.getElementById('school').addEventListener('change', function() {
@@ -69,7 +89,7 @@
         const studentField = document.querySelector("input[name='student_id']");
         let currentValue = studentField.value;
 
-        let rest = currentValue.length > 1 ? currentValue.slice(1) : "00000";
+        let rest = currentValue.length > 1 ? currentValue.slice(1) : "000000";
 
         studentField.value = schoolId + rest;
     });
