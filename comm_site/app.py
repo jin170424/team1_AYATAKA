@@ -48,8 +48,8 @@ class Post(db.Model):
     post_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     scope = db.Column(db.String(50), nullable=False)
 
 class Comment(db.Model):
@@ -58,7 +58,7 @@ class Comment(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey("post.post_id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     post = db.relationship("Post", backref="comments")
     user = db.relationship("User", backref="comments")
