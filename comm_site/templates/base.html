@@ -47,6 +47,29 @@
             }
         }
     </script>
+    <script>
+        function toggleComments(commentsId) {
+            const commentsDiv = document.getElementById(commentsId);
+            const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
+            
+            if (commentsDiv.classList.contains('hidden')) {
+                // コメントを表示
+                commentsDiv.classList.remove('hidden');
+                commentsDiv.classList.add('comment-slide-down');
+                arrowIcon.classList.add('rotate-180');
+            } else {
+                // コメントを非表示
+                commentsDiv.classList.add('comment-slide-up');
+                arrowIcon.classList.remove('rotate-180');
+                
+                // アニメーション完了後に非表示
+                setTimeout(() => {
+                    commentsDiv.classList.add('hidden');
+                    commentsDiv.classList.remove('comment-slide-up');
+                }, 300);
+            }
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&display=swap');
         
@@ -62,6 +85,37 @@
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
+        }
+
+        /* コメント折りたたみアニメーション */
+        .comment-slide-down {
+            animation: slideDown 0.3s ease-out forwards;
+        }
+
+        .comment-slide-up {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
         }
 
         .dropdown {

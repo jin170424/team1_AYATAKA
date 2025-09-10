@@ -66,37 +66,56 @@
                     </div>
                     {% endif %}
 
-                    <!-- コメント一覧 -->
-                    {% if post.comments %}
-                    <div class="mt-4 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
-                        {% for comment in post.comments %}
-                        <div class="flex space-x-2">
-                            <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else "不明" }}</span>
-                            <span class="text-kawaii-dark">{{ comment.content }}</span>
-                        </div>
-                        <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
+                    <!-- コメントセクション -->
+                    <div class="mt-4">
+                        <!-- コメントトグルボタン -->
+                        {% if post.comments %}
+                        <button 
+                            onclick="toggleComments('comments-{{ post.post_id }}')"
+                            class="w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200"
+                        >
+                            <span class="text-sm text-kawaii-dark flex items-center space-x-2">
+                                <span class="text-kawaii-purple">💬</span>
+                                <span>{{ post.comments|length }}件のコメント</span>
+                            </span>
+                            <svg id="arrow-{{ post.post_id }}" class="w-5 h-5 text-kawaii-dark/40 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
 
-                    <!-- コメント投稿フォーム -->
-                    <form class="mt-4" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
-                        <div class="flex space-x-2">
-                            <textarea 
-                                name="comment_content" 
-                                rows="1" 
-                                placeholder="コメントを書く" 
-                                required
-                                class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
-                            ></textarea>
-                            <button 
-                                type="submit"
-                                class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm"
-                            >
-                                💭
-                            </button>
+                        <!-- コメント一覧（デフォルトで非表示） -->
+                        <div id="comments-{{ post.post_id }}" class="hidden mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
+                            {% for comment in post.comments %}
+                            <div class="flex flex-col">
+                                <div class="flex space-x-2">
+                                    <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else "不明" }}</span>
+                                    <span class="text-kawaii-dark">{{ comment.content }}</span>
+                                </div>
+                                <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</div>
+                            </div>
+                            {% endfor %}
                         </div>
-                    </form>
+                        {% endif %}
+
+                        <!-- コメント投稿フォーム -->
+                        <form class="mt-2" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
+                            <div class="flex space-x-2">
+                                <textarea 
+                                    name="comment_content" 
+                                    rows="1" 
+                                    placeholder="コメントを書く" 
+                                    required
+                                    class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
+                                ></textarea>
+                                <button 
+                                    type="submit"
+                                    class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm"
+                                >
+                                    💭
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
