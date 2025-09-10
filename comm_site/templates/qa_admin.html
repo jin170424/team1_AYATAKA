@@ -105,41 +105,44 @@ button:hover {
     </div>
 </div>
 
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-const adminSend = document.getElementById("adminSend");
-const adminAnswer = document.getElementById("adminAnswer");
-const answerDiv = document.getElementById("answer");
+    const socket = io(); // Flask-SocketIOに接続
 
-const ws = new WebSocket("ws://localhost:8765");
+    const adminSend = document.getElementById("adminSend");
+    const adminAnswer = document.getElementById("adminAnswer");
+    const answerDiv = document.getElementById("answer");
 
-ws.onopen = () => {
-    console.log("管理者画面: サーバーに接続しました");
-    ws.send("admin"); 
-};
+    // 学生からの質問を受信
+    socket.on("receive_question", (data) => {
+        const qElem = document.createElement("div");
+        qElem.classList.add("chat-q");
+        qElem.textContent = "質問: " + data.message;
+        answerDiv.appendChild(qElem);
+        answerDiv.scrollTop = answerDiv.scrollHeight;
+        // 学生IDをdata.user_idとして保持
+        qElem.dataset.userId = data.user_id;
+    });
 
-ws.onmessage = (event) => {
-    const msg = event.data;
-    const qElem = document.createElement("div");
-    qElem.classList.add("chat-q");
-    qElem.textContent = "質問: " + msg;
-    answerDiv.appendChild(qElem);
+    adminSend.addEventListener("click", () => {
+        const answer = adminAnswer.value.trim();
+        if (!answer) return;
 
-    answerDiv.scrollTop = answerDiv.scrollHeight;
-};
+        // 最後に表示された質問の user_id を取得
+        const lastQuestion = answerDiv.querySelector(".chat-q:last-child");
+        const targetUserId = lastQuestion ? lastQuestion.dataset.userId : null;
+        if (!targetUserId) return;
 
-adminSend.addEventListener("click", () => {
-    const answer = adminAnswer.value.trim();
-    if(answer === "") return;
+        // 回答を送信
+        socket.emit("send_answer", { user_id: targetUserId, message: answer });
 
-    ws.send(answer); 
-    const aElem = document.createElement("div");
-    aElem.classList.add("chat-a");
-    aElem.textContent = "回答: " + answer;
-    answerDiv.appendChild(aElem);
+        // チャット画面に表示
+        const aElem = document.createElement("div");
+        aElem.classList.add("chat-a");
+        aElem.textContent = "回答: " + answer;
+        answerDiv.appendChild(aElem);
+        answerDiv.scrollTop = answerDiv.scrollHeight;
 
-    answerDiv.scrollTop = answerDiv.scrollHeight;
-    adminAnswer.value = "";
-});
-
+        adminAnswer.value = "";
+    });
 </script>
-
