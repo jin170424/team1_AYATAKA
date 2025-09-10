@@ -9,7 +9,7 @@
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-12">
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
-            <h1 class="text-2xl font-bold text-center text-gray-900 mb-8">ユーザー情報入力</h1>
+            <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">アカウント作成</h1>
             <form id="signupForm" method="POST" action="/create_account" class="space-y-6">
                 <div>
                     <label for="full_name" class="block text-sm font-medium text-gray-700">氏名</label>
@@ -57,10 +57,17 @@
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
 
-    <br>
-    <button type="submit">アカウント作成</button>
-</form>
-<a href="{{ url_for('user_management') }}">ユーザー管理へ戻る</a>
+                <div class="flex flex-col space-y-4">
+                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        アカウント作成
+                    </button>
+                    <a href="{{ url_for('user_management') }}" class="text-center text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200">
+                        ユーザー管理へ戻る
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 
 <script>
     document.getElementById("signupForm").addEventListener("submit", function(event) {
@@ -92,6 +99,12 @@ document.getElementById("school").addEventListener("change", function() {
             });
         });
     }
+        const studentField = document.querySelector("input[name='student_id']");
+        let currentValue = studentField.value;
+
+        let rest = currentValue.length > 1 ? currentValue.slice(1) : "000000";
+
+        studentField.value = schoolId + rest;
 });
 </script>
 </body>
