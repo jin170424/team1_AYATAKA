@@ -1,142 +1,108 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-    }
+<div class="min-h-screen bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-900">{{ board_title if board_title else 'ホーム掲示板' }}</h2>
+            <p class="mt-2 text-gray-600">ようこそ、{{ user }}さん。</p>
+        </div>
 
-    .post-list {
-        width: 100%;
-        max-width: 800px;
-        margin-top: 20px;
-    }
+        <!-- 投稿フォーム -->
+        {% if session["role"] == "student" %}
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <form action="{{ url_for('submit_post') }}" method="POST" class="space-y-4">
+                <textarea name="content" rows="4" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                    placeholder="投稿内容を入力してください"></textarea>
+                <input type="hidden" name="scope" value="{{ current_scope }}">
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        投稿する
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
 
-    .post-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
+        <!-- 投稿一覧 -->
+        <div class="space-y-6">
+            {% if posts %}
+                {% for post in posts %}
+                <div class="bg-white rounded-lg shadow-sm p-6" id="post-{{ post.post_id }}">
+                    <div class="prose max-w-none">
+                        <p class="text-gray-800">{{ post.content }}</p>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center text-sm text-gray-600">
+                        <div class="flex items-center space-x-2">
+                            <span>{{ post.author.name if post.author else '不明' }}</span>
+                            <span>•</span>
+                            <span>{{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+                        </div>
+                        
+                        <!-- 投稿削除ボタン -->
+                        {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
+                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" 
+                              onsubmit="return confirm('本当に削除しますか？')" class="ml-4">
+                            <button type="submit"
+                                class="text-red-600 hover:text-red-800 focus:outline-none focus:underline">
+                                削除
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
 
-    .post-box p {
-        margin: 0;
-        line-height: 1.6;
-    }
+                    <!-- コメントセクション -->
+                    <div class="mt-6 space-y-4 pl-4 border-l-2 border-gray-200">
+                        {% if post.comments %}
+                            {% for comment in post.comments %}
+                            <div class="text-sm">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-medium text-gray-900">{{ comment.user.name if comment.user else "不明" }}</span>
+                                    <span class="text-gray-500">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</span>
+                                </div>
+                                <p class="mt-1 text-gray-600">{{ comment.content }}</p>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
 
-    .post-box small {
-        display: block;
-        margin-top: 10px;
-        color: #6c757d;
-        text-align: right;
-    }
-
-    .post-form textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-    }
-
-    .post-form button {
-        margin-top: 10px;
-    }
-
-    .comment-box {
-        margin-top: 10px;
-        padding-left: 15px;
-        border-left: 2px solid #ccc;
-    }
-
-    .comment-form textarea {
-        width: 100%;
-        margin-top: 5px;
-        border-radius: 5px;
-        padding: 5px;
-        border: 1px solid #ccc;
-    }
-
-    .comment-form button {
-        margin-top: 5px;
-    }
-
-    .delete-button {
-        margin-top: 5px;
-        text-align: right;
-    }
-</style>
-
-<div class="container">
-    <h2>{{ board_title if board_title else 'ホーム掲示板' }}</h2>
-    <p>ようこそ、{{ user }}さん。</p>
-
-    <!-- 投稿フォーム -->
-    {% if session["role"] == "student" %}
-    <div class="post-form" style="max-width: 800px; width: 100%;">
-        <form action="{{ url_for('submit_post') }}" method="POST">
-            <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required></textarea>
-            <input type="hidden" name="scope" value="{{ current_scope }}">
-            <button type="submit">投稿する</button>
-        </form>
-    </div>
-    {% endif %}
-
-    <div class="post-list">
-        {% if posts %}
-            {% for post in posts %}
-                <div class="post-box" id="post-{{ post.post_id }}">
-                    <p>{{ post.content }}</p>
-                    <small>
-                        投稿者: {{ post.author.name if post.author else '不明' }} |
-                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
-                    </small>
-
-                    <!-- 投稿削除ボタン -->
-                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
-                    <div class="delete-button">
-                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button type="submit">削除</button>
+                        <!-- コメント投稿フォーム -->
+                        <form action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST" class="mt-4">
+                            <textarea name="comment_content" rows="2" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                placeholder="コメントを書く"></textarea>
+                            <div class="mt-2 flex justify-end">
+                                <button type="submit"
+                                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    コメントする
+                                </button>
+                            </div>
                         </form>
                     </div>
-                    {% endif %}
-
-                    <!-- コメント一覧 -->
-                    {% if post.comments %}
-                    <div class="comment-box">
-                        {% for comment in post.comments %}
-                        <div>
-                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>:
-                            {{ comment.content }}<br>
-                            <small style="color: #888;">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</small>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    <!-- コメント投稿フォーム -->
-                    <form class="comment-form" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
-                        <textarea name="comment_content" rows="2" placeholder="コメントを書く" required></textarea>
-                        <button type="submit">コメントする</button>
-                    </form>
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="post-box">
-                <p>現在、投稿はありません。</p>
-            </div>
-        {% endif %}
-    </div>
+                {% endfor %}
+            {% else %}
+                <div class="bg-white rounded-lg shadow-sm p-6">
+                    <p class="text-gray-600">現在、投稿はありません。</p>
+                </div>
+            {% endif %}
+        </div>
 
-    <div style="margin-top: 20px;">
-        <a href="{{ url_for('school_wide_board') }}">校舎間掲示板</a> |
-        <a href="{{ url_for('school_specific_board') }}">{{ session.get('school_name', '用掲示板') }}</a> |
-        <a href="{{ url_for('notice_board') }}">通知用掲示板</a> |
-        <a href="{{ url_for('login') }}">Q&A</a>
+        <!-- ナビゲーションリンク -->
+        <div class="mt-8 flex justify-center space-x-4">
+            <a href="{{ url_for('school_wide_board') }}" 
+               class="text-indigo-600 hover:text-indigo-900 focus:outline-none focus:underline">校舎間掲示板</a>
+            <span class="text-gray-300">|</span>
+            <a href="{{ url_for('school_specific_board') }}"
+               class="text-indigo-600 hover:text-indigo-900 focus:outline-none focus:underline">{{ session.get('school_name', '用掲示板') }}</a>
+            <span class="text-gray-300">|</span>
+            <a href="{{ url_for('notice_board') }}"
+               class="text-indigo-600 hover:text-indigo-900 focus:outline-none focus:underline">通知用掲示板</a>
+            <span class="text-gray-300">|</span>
+            <a href="{{ url_for('login') }}"
+               class="text-indigo-600 hover:text-indigo-900 focus:outline-none focus:underline">Q&A</a>
+        </div>
     </div>
 </div>
 {% endblock %}

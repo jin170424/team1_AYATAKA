@@ -1,10 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h2>プロフィール</h2>
-    <p><strong>名前:</strong> {{ user.name }}</p>
-    <p><strong>学籍番号:</strong> {{ user.student_id }}</p>
-    <p><strong>校舎:</strong> {{ user.school.school_name }}</p>
-    <p><strong>学科:</strong> {{ user.department.department_name if user.department else 'なし' }}</p>
-    <p><strong>学年:</strong> {{ user.year }}</p>
-    {% endblock %}
+<div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">プロフィール</h2>
+        <div class="space-y-4">
+            <div class="border-b pb-3">
+                <p class="text-sm text-gray-500">名前</p>
+                <p class="text-lg font-medium text-gray-900">{{ user.name }}</p>
+            </div>
+            <div class="border-b pb-3">
+                <p class="text-sm text-gray-500">学籍番号</p>
+                <p class="text-lg font-medium text-gray-900">{{ user.student_id }}</p>
+            </div>
+            <div class="border-b pb-3">
+                <p class="text-sm text-gray-500">校舎</p>
+                <p class="text-lg font-medium text-gray-900">{{ user.school.school_name }}</p>
+            </div>
+            <div class="border-b pb-3">
+                <p class="text-sm text-gray-500">学科</p>
+                <p class="text-lg font-medium text-gray-900">{{ user.department.department_name if user.department else 'なし' }}</p>
+            </div>
+            <div class="pb-3">
+                <p class="text-sm text-gray-500">学年</p>
+                <p class="text-lg font-medium text-gray-900">{{ user.year }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
