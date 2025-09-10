@@ -6,8 +6,64 @@
     <title>CommSite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'kawaii-pink': '#FF88B6',
+                        'kawaii-blue': '#6B9AC4',
+                        'kawaii-yellow': '#FFD1A1',
+                        'kawaii-purple': '#B19CD9',
+                        'kawaii-mint': '#98D8D8',
+                        'kawaii-lavender': '#E2E2F0',
+                        'kawaii-peach': '#FFB6B6',
+                        'kawaii-dark': '#4A4A4A',
+                        'kawaii-light': '#FFFFFF',
+                        'kawaii-text': '#2C3E50'
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 3s infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'wiggle': 'wiggle 1s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                        'sparkle': 'sparkle 1.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        wiggle: {
+                            '0%, 100%': { transform: 'rotate(-3deg)' },
+                            '50%': { transform: 'rotate(3deg)' },
+                        },
+                        sparkle: {
+                            '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                            '50%': { opacity: 0.5, transform: 'scale(1.2)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        /* CSS for dropdown menu */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #FFF0F5 0%, #FFFFFF 35%, #F0F8FF 65%, #FFFFFF 100%);
+            background-size: 200% 200%;
+            animation: gradient 20s ease infinite;
+            color: #2C3E50;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .dropdown {
             position: relative;
             display: inline-block;
@@ -16,21 +72,28 @@
         .dropdown-content {
             display: none;
             position: absolute;
-            background-color: #f9f9f9;
+            background-color: rgba(255, 255, 255, 0.95);
             min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            backdrop-filter: blur(8px);
             z-index: 1;
+            animation: fadeIn 0.3s ease-out;
         }
 
         .dropdown-content a {
-            color: black;
+            color: #2C3E50;
             padding: 12px 16px;
             text-decoration: none;
             display: block;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 4px;
         }
 
         .dropdown-content a:hover {
-            background-color: #f1f1f1;
+            background-color: rgba(78, 205, 196, 0.1);
+            transform: translateX(5px);
         }
 
         .dropdown:hover .dropdown-content {
@@ -40,52 +103,103 @@
         .user-info-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        .user-info-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
         }
         
         .user-info-container .user-info {
             margin: 0;
             padding: 0;
-            font-size: 0.9em;
-            color: #555;
+            font-size: 0.95em;
+            color: #2C3E50;
+            font-weight: 500;
         }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <nav class="bg-white shadow-lg">
+    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-kawaii-pink/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <a href="{{ url_for('index') }}" class="text-2xl font-bold text-indigo-600">CommSite</a>
+                    <a href="{{ url_for('index') }}" class="group relative">
+                        <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-kawaii-pink via-kawaii-purple to-kawaii-blue animate-pulse-slow">
+                            CommSite
+                        </span>
+                        <span class="absolute -top-1 -right-4 text-lg transform rotate-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</span>
+                    </a>
                 </div>
                 {% if session.name %}
-                <div class="flex items-center">
+                <div class="flex items-center space-x-6">
                     <div class="relative group">
-                        <button class="flex items-center space-x-2 text-gray-700 hover:text-indigo-600 focus:outline-none">
-                            <span>ようこそ, {{ session.name }}さん</span>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
+                        <button class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 hover:from-kawaii-pink/20 hover:to-kawaii-purple/20 transition-all duration-300 group-hover:scale-105">
+                            <span class="text-kawaii-purple font-medium">ようこそ, {{ session.name }}さん</span>
+                            <span class="text-xl group-hover:rotate-180 transition-transform duration-300"></span>
                         </button>
-                        <div class="absolute right-0 w-48 mt-2 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-in-out">
-                            <a href="{{ url_for('profile_view') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">プロフィール閲覧</a>
-                            <a href="{{ url_for('settings') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">設定</a>
-                            <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">ログアウト</a>
+                        <div class="absolute right-0 w-56 mt-2 bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out z-50 border border-kawaii-pink/20 overflow-hidden">
+                            <div class="p-2 space-y-1">
+                                <a href="{{ url_for('profile_view') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
+                                    <span class="text-lg">👤</span>
+                                    <span class="text-sm font-medium text-kawaii-dark">プロフィール閲覧</span>
+                                </a>
+                                <a href="{{ url_for('settings') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
+                                    <span class="text-lg">⚙️</span>
+                                    <span class="text-sm font-medium text-kawaii-dark">設定</span>
+                                </a>
+                                <hr class="my-1 border-kawaii-pink/10">
+                                <a href="{{ url_for('logout') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-red-50 transition-colors duration-300">
+                                    <span class="text-lg">🚪</span>
+                                    <span class="text-sm font-medium text-kawaii-red">ログアウト</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    <div class="ml-4 text-sm text-gray-600">
-                        <span class="px-2">{{ session.student_id }}</span>|
-                        <span class="px-2">{{ session.school_name }}</span>|
-                        <span class="px-2">{{ session.department_name }}</span>|
-                        <span class="px-2">{{ session.year }}年</span>
+                    <div class="flex items-center space-x-2 text-sm">
+                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-blue/10">
+                            <span class="text-kawaii-blue font-medium">{{ session.student_id }}</span>
+                        </div>
+                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
+                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-purple/10">
+                            <span class="text-kawaii-purple font-medium">{{ session.school_name }}</span>
+                        </div>
+                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
+                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-pink/10">
+                            <span class="text-kawaii-pink font-medium">{{ session.department_name }}</span>
+                        </div>
+                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
+                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-mint/10">
+                            <span class="text-kawaii-green font-medium">{{ session.year }}年</span>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
             </div>
         </div>
     </nav>
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {% block content %}{% endblock %}
+    <main class="relative">
+        <!-- Decorative background elements -->
+        <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
+            <div class="absolute top-0 right-0 w-96 h-96 bg-kawaii-pink/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
+            <div class="absolute bottom-0 left-0 w-96 h-96 bg-kawaii-blue/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow delay-150"></div>
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-kawaii-purple/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow delay-300"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 relative">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Floating decorative elements -->
+        <div class="fixed bottom-4 right-4 text-4xl animate-bounce-slow opacity-50 pointer-events-none">🌟</div>
+        <div class="fixed top-4 left-4 text-4xl animate-float opacity-50 pointer-events-none">🎀</div>
     </main>
 </body>
 </html>
