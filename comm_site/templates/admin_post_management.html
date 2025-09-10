@@ -1,100 +1,60 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-    }
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <h2 class="text-3xl font-bold text-gray-800 mb-6">投稿管理</h2>
+    <p class="text-gray-600 mb-8">すべての投稿を管理できます。</p>
 
-    .post-list {
-        width: 100%;
-        max-width: 800px;
-        margin-top: 20px;
-    }
-
-    .post-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    .post-box p {
-        margin: 0;
-        line-height: 1.6;
-    }
-
-    .post-box small {
-        display: block;
-        margin-top: 10px;
-        color: #6c757d;
-        text-align: right;
-    }
-
-    .comment-box {
-        margin-top: 10px;
-        padding-left: 15px;
-        border-left: 2px solid #ccc;
-    }
-
-    .comment-form textarea {
-        width: 100%;
-        margin-top: 5px;
-        border-radius: 5px;
-        padding: 5px;
-        border: 1px solid #ccc;
-    }
-
-    .comment-form button {
-        margin-top: 5px;
-    }
-
-    .action-buttons {
-        margin-top: 10px;
-        display: flex;
-        justify-content: space-between;
-    }
-</style>
-
-<div class="container">
-    <h2>投稿管理</h2>
-    <p>すべての投稿を管理できます。</p>
-
-    <div class="post-form" style="max-width: 800px; width: 100%;">
-        <h3>新しい通知を投稿する</h3>
-        <form action="{{ url_for('admin_post_management') }}" method="POST">
-            <textarea name="content" rows="4" placeholder="通知内容を入力してください" required></textarea>
-            <label for="notice_scope">通知先:</label>
-            <select name="notice_scope" id="notice_scope">
-                {% if schools %}
-                    {% for school in schools %}
-                        <option value="notice{{ school.school_id }}">{{ school.school_name }}</option>
-                    {% endfor %}
-                {% endif %}
-            </select>
-            <button type="submit">通知を投稿</button>
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">新しい通知を投稿する</h3>
+        <form action="{{ url_for('admin_post_management') }}" method="POST" class="space-y-4">
+            <div class="space-y-2">
+                <textarea 
+                    name="content" 
+                    rows="4" 
+                    placeholder="通知内容を入力してください" 
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"></textarea>
+            </div>
+            <div class="flex items-center space-x-4">
+                <label for="notice_scope" class="text-gray-700">通知先:</label>
+                <select 
+                    name="notice_scope" 
+                    id="notice_scope"
+                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    {% if schools %}
+                        {% for school in schools %}
+                            <option value="notice{{ school.school_id }}">{{ school.school_name }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+            <button 
+                type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                通知を投稿
+            </button>
         </form>
     </div>
 
-    <div class="post-list">
+    <div class="space-y-4">
         {% if posts %}
             {% for post in posts %}
-                <div class="post-box" id="post-{{ post.post_id }}">
-                    <p>{{ post.content }}</p>
-                    <small>
-                        投稿者: {{ post.author.name if post.author else '不明' }} |
-                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }} |
-                        スコープ: {{ post.scope }}
-                    </small>
+                <div id="post-{{ post.post_id }}" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+                    <p class="text-gray-800 text-lg mb-4">{{ post.content }}</p>
+                    <div class="text-sm text-gray-500 mb-4">
+                        <span class="inline-block mr-4">投稿者: {{ post.author.name if post.author else '不明' }}</span>
+                        <span class="inline-block mr-4">投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+                        <span>スコープ: {{ post.scope }}</span>
+                    </div>
 
-                    <div class="action-buttons">
+                    <div class="flex justify-end">
                         <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button type="submit">投稿を削除</button>
+                            <button 
+                                type="submit"
+                                class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                                投稿を削除
+                            </button>
                         </form>
                     </div>
 
