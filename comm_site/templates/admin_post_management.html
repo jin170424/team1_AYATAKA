@@ -36,17 +36,6 @@
         text-align: right;
     }
 
-    .post-form textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-    }
-
-    .post-form button {
-        margin-top: 10px;
-    }
-
     .comment-box {
         margin-top: 10px;
         padding-left: 15px;
@@ -65,25 +54,32 @@
         margin-top: 5px;
     }
 
-    .delete-button {
-        margin-top: 5px;
-        text-align: right;
+    .action-buttons {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
     }
 </style>
 
 <div class="container">
-    <h2>{{ board_title if board_title else 'ホーム掲示板' }}</h2>
-    <p>ようこそ、{{ user }}さん。</p>
+    <h2>投稿管理</h2>
+    <p>すべての投稿を管理できます。</p>
 
-    {% if session["role"] == "student" and current_scope != 'notice0' %}
     <div class="post-form" style="max-width: 800px; width: 100%;">
-        <form action="{{ url_for('submit_post') }}" method="POST">
-            <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required></textarea>
-            <input type="hidden" name="scope" value="{{ current_scope }}">
-            <button type="submit">投稿する</button>
+        <h3>新しい通知を投稿する</h3>
+        <form action="{{ url_for('admin_post_management') }}" method="POST">
+            <textarea name="content" rows="4" placeholder="通知内容を入力してください" required></textarea>
+            <label for="notice_scope">通知先:</label>
+            <select name="notice_scope" id="notice_scope">
+                {% if schools %}
+                    {% for school in schools %}
+                        <option value="notice{{ school.school_id }}">{{ school.school_name }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+            <button type="submit">通知を投稿</button>
         </form>
     </div>
-    {% endif %}
 
     <div class="post-list">
         {% if posts %}
@@ -92,16 +88,15 @@
                     <p>{{ post.content }}</p>
                     <small>
                         投稿者: {{ post.author.name if post.author else '不明' }} |
-                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
+                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }} |
+                        スコープ: {{ post.scope }}
                     </small>
 
-                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
-                    <div class="delete-button">
+                    <div class="action-buttons">
                         <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button type="submit">削除</button>
+                            <button type="submit">投稿を削除</button>
                         </form>
                     </div>
-                    {% endif %}
 
                     {% if post.comments %}
                     <div class="comment-box">
@@ -114,11 +109,6 @@
                         {% endfor %}
                     </div>
                     {% endif %}
-
-                    <form class="comment-form" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
-                        <textarea name="comment_content" rows="2" placeholder="コメントを書く" required></textarea>
-                        <button type="submit">コメントする</button>
-                    </form>
                 </div>
             {% endfor %}
         {% else %}
@@ -126,13 +116,6 @@
                 <p>現在、投稿はありません。</p>
             </div>
         {% endif %}
-    </div>
-
-    <div style="margin-top: 20px;">
-        <a href="{{ url_for('school_wide_board') }}">校舎間掲示板</a> |
-        <a href="{{ url_for('school_specific_board') }}">{{ session.get('school_name', '用掲示板') }}</a> |
-        <a href="{{ url_for('notice_board') }}">通知用掲示板</a> |
-        <a href="{{ url_for('login') }}">Q&A</a>
     </div>
 </div>
 {% endblock %}
