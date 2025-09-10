@@ -10,103 +10,86 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        <!-- 投稿フォーム -->
-        {% if session["role"] == "student" %}
-        <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-md p-6 mb-8 transition-all duration-300 hover:shadow-lg border border-kawaii-lavender">
-            <form action="{{ url_for('submit_post') }}" method="POST" class="space-y-4">
-                <div class="relative">
-                    <textarea name="content" rows="4" required
-                        class="w-full px-4 py-3 border border-kawaii-lavender rounded-lg focus:ring-1 focus:ring-kawaii-pink focus:border-kawaii-pink resize-none transition-all duration-300 bg-white/90 text-kawaii-dark text-lg placeholder-kawaii-dark/50"
-                        placeholder="今日の出来事をシェアしよう"></textarea>
-                </div>
-                <input type="hidden" name="scope" value="{{ current_scope }}">
-                <div class="flex justify-end">
-                    <button type="submit"
-                        class="px-6 py-2 bg-kawaii-pink text-white rounded-md hover:bg-kawaii-pink/90 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-kawaii-pink/50 font-medium">
-                        投稿する
-                    </button>
-                </div>
-            </form>
-        </div>
-        {% endif %}
+    <!-- 投稿フォーム -->
+    {% if session["role"] == "student" and current_scope != 'notice0' %}
+    <div class="max-w-2xl mx-auto mb-8">
+        <form action="{{ url_for('submit_post') }}" method="POST" class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+            <textarea 
+                name="content" 
+                rows="4" 
+                placeholder="投稿内容を入力してください" 
+                required
+                class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"
+            ></textarea>
+            <input type="hidden" name="scope" value="{{ current_scope }}">
+            <button 
+                type="submit"
+                class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto"
+            >
+                <span class="text-xl">✨</span>
+                <span>投稿する</span>
+            </button>
+        </form>
+    </div>
+    {% endif %}
 
-        <!-- 投稿一覧 -->
-        <div class="space-y-8">
-            {% if posts %}
-                {% for post in posts %}
-                <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-md p-5 transition-all duration-300 hover:shadow-lg border border-kawaii-lavender/50" 
-                     id="post-{{ post.post_id }}">
-                    <div class="border-l-4 border-kawaii-pink/30 pl-4 mb-4"></div>
-                    
-                    <div class="prose max-w-none relative">
-                        <p class="text-lg leading-relaxed text-kawaii-dark">{{ post.content }}</p>
-                    </div>
-                    <div class="mt-6 flex justify-between items-center">
-                        <div class="flex items-center space-x-4">
-                            <div class="flex items-center space-x-2 bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 px-5 py-2 rounded-full transform hover:scale-105 transition-transform duration-300">
-                                <span class="text-xl">👤</span>
-                                <span class="font-medium bg-clip-text text-transparent bg-gradient-to-r from-kawaii-pink to-kawaii-purple">
-                                    {{ post.author.name if post.author else '不明' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center space-x-2 text-kawaii-purple/70">
-                                <span class="text-lg">🕒</span>
-                                <span class="text-sm">
-                                    {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}
-                                </span>
-                            </div>
+    <div class="space-y-6 max-w-2xl mx-auto">
+        {% if posts %}
+            {% for post in posts %}
+                <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
+                    <div class="mb-4">
+                        <p class="text-lg text-kawaii-dark leading-relaxed">{{ post.content }}</p>
+                        <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
+                            <span class="text-lg">👤</span>
+                            <span>{{ post.author.name if post.author else '不明' }}</span>
+                            <span class="text-kawaii-dark/40">•</span>
+                            <span>{{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
                         </div>
-                        
-                        <!-- 投稿削除ボタン -->
-                        {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
-                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" 
-                              onsubmit="return confirm('本当に削除しますか？')" class="ml-4">
-                            <button type="submit"
-                                class="group flex items-center px-3 py-2 text-sm text-modern-primary hover:bg-modern-primary/10 rounded-lg transition-all duration-300 focus:outline-none">
-                                <svg class="w-5 h-5 mr-1 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                                削除
+                    </div>
+
+                    <!-- 投稿削除ボタン -->
+                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
+                    <div class="mt-2">
+                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
+                            <button type="submit" class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
+                                <span class="text-sm">🗑️</span>
+                                <span class="text-sm font-medium">削除</span>
                             </button>
                         </form>
-                        {% endif %}
                     </div>
+                    {% endif %}
 
-                    <!-- コメントセクション -->
-                    <div class="mt-6 space-y-4 pl-6 border-l-2 border-pastel-blue/30">
-                        {% if post.comments %}
-                            {% for comment in post.comments %}
-                            <div class="text-sm group">
-                                <div class="flex items-center space-x-3">
-                                    <span class="px-3 py-1 bg-pastel-purple/10 rounded-full font-medium text-modern-dark">
-                                        {{ comment.user.name if comment.user else "不明" }}
-                                    </span>
-                                    <span class="text-gray-500 text-xs">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</span>
-                                </div>
-                                <p class="mt-2 text-gray-600 bg-white/50 p-3 rounded-lg">{{ comment.content }}</p>
-                            </div>
-                            {% endfor %}
-                        {% endif %}
-
-                        <!-- コメント投稿フォーム -->
-                        <form action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST" class="mt-6">
-                            <div class="relative group">
-                                <div class="absolute -top-6 left-4 text-2xl transform -rotate-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✏️</div>
-                                <textarea name="comment_content" rows="2" required
-                                    class="w-full px-5 py-3 border-2 border-kawaii-purple/30 rounded-2xl bg-white/70 placeholder-kawaii-purple/50 focus:outline-none focus:ring-2 focus:ring-kawaii-pink focus:border-kawaii-pink transition-all duration-300 text-base"
-                                    placeholder="かわいいコメントを書いてみよう..."></textarea>
-                                <div class="absolute bottom-3 right-3">
-                                    <button type="submit"
-                                        class="group inline-flex items-center px-5 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white rounded-full text-base font-medium transform hover:scale-110 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-kawaii-pink/40 shadow-lg hover:shadow-xl">
-                                        <span class="mr-2 group-hover:animate-bounce">💬</span>
-                                        送信する
-                                        <span class="ml-2 opacity-0 group-hover:opacity-100">✨</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
+                    <!-- コメント一覧 -->
+                    {% if post.comments %}
+                    <div class="mt-4 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
+                        {% for comment in post.comments %}
+                        <div class="flex space-x-2">
+                            <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else "不明" }}</span>
+                            <span class="text-kawaii-dark">{{ comment.content }}</span>
+                        </div>
+                        <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</div>
+                        {% endfor %}
                     </div>
+                    {% endif %}
+
+                    <!-- コメント投稿フォーム -->
+                    <form class="mt-4" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
+                        <div class="flex space-x-2">
+                            <textarea 
+                                name="comment_content" 
+                                rows="1" 
+                                placeholder="コメントを書く" 
+                                required
+                                class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
+                            ></textarea>
+                            <button 
+                                type="submit"
+                                class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm"
+                            >
+                                💭
+                            </button>
+                        </div>
+                    </form>
                 </div>
                 {% endfor %}
             {% else %}
