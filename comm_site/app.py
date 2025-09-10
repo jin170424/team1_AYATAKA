@@ -149,14 +149,20 @@ def school_specific_board():
     return redirect(url_for("login"))
 
 
-
 @app.route("/home/notice_board")
 def notice_board():
     if "role" in session and session["role"] == "student":
-        # 'notice0'から'notice8'までのスコープに合致する投稿を取得
-        notice_scopes = [f'notice{i}' for i in range(9)]
+        user_school_id = session.get("school_id")
+        notice_scopes = []
+        if user_school_id is not None:
+            notice_scopes.append(f'notice{user_school_id}') # ユーザーの所属校舎への通知
+
+        # school_idが0のユーザーにのみnotice0を表示
+        if user_school_id == 0:
+            notice_scopes.append('notice0') 
+
         posts = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板")
+        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板", current_scope="notice0")
     return redirect(url_for("login"))
 
 @app.route("/post", methods=["POST"])
@@ -196,11 +202,16 @@ def delete_post(post_id):
 
     if not post:
         flash("投稿が見つかりませんでした。", "error")
+        # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
+        if "admin" in request.referrer:
+            return redirect(url_for("admin_post_management"))
         return redirect(url_for("home"))
 
     # 削除権限の確認：本人または管理者
     if post.user_id != session["user_id"] and session["role"] != "admin":
         flash("削除権限がありません。", "error")
+        if "admin" in request.referrer:
+            return redirect(url_for("admin_post_management"))
         return redirect(url_for("home"))
 
     # 関連コメントを削除
@@ -210,6 +221,9 @@ def delete_post(post_id):
     db.session.commit()
 
     flash("投稿を削除しました。", "success")
+    # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
+    if "admin" in request.referrer:
+        return redirect(url_for("admin_post_management"))
     # スコープに応じてリダイレクト
     if post.scope == "public":
         return redirect(url_for("school_wide_board"))
@@ -310,6 +324,39 @@ def admin_dashboard():
     if "role" in session and session["role"] == "admin":
         return render_template("admin_dashboard.html", user=session["name"])
     return redirect(url_for("login"))
+
+
+@app.route("/admin/post_management", methods=["GET", "POST"])
+def admin_post_management():
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    # POSTリクエスト（通知用投稿の作成）
+    if request.method == "POST":
+        content = request.form.get("content")
+        notice_scope = request.form.get("notice_scope")
+
+        if not content or not notice_scope:
+            flash("投稿内容または通知先が不正です。", "error")
+            return redirect(url_for("admin_post_management"))
+        
+        # 通知用投稿を作成
+        new_post = Post(
+            user_id=session["user_id"],
+            content=content,
+            scope=notice_scope
+        )
+        db.session.add(new_post)
+        db.session.commit()
+        
+        flash("新しい通知を投稿しました。", "success")
+        return redirect(url_for("admin_post_management"))
+
+    # GETリクエスト（投稿一覧の表示）
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    schools = School.query.all()  # すべての校舎情報を取得
+    return render_template("admin_post_management.html", posts=posts, schools=schools)
+
 
 @app.route("/logout")
 def logout():
