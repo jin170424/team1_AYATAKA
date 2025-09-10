@@ -55,8 +55,26 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     scope = db.Column(db.String(50), nullable=False)
 
+class Comment(db.Model):
+    __tablename__ = "comment"
+    comment_id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.post_id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    post = db.relationship("Post", backref="comments")
+    user = db.relationship("User", backref="comments")
+
+
 @app.route("/")
 def index():
+    if "role" in session:
+        role = session.get("role")
+        if role == "admin":
+            return redirect(url_for("admin_dashboard"))
+        if role == "student":
+            return redirect(url_for("home"))
     return redirect(url_for("login"))
 
 @app.route("/login", methods=["GET", "POST"])
@@ -103,9 +121,12 @@ def home():
 @app.route("/home/school_wide")
 def school_wide_board():
     if "role" in session and session["role"] == "student":
-        # 公開範囲が'public'の投稿をすべて取得
         posts = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="校舎間掲示板")
+        return render_template("home.html",
+                               user=session["name"],
+                               posts=posts,
+                               board_title="校舎間掲示板",
+                               current_scope="public")  # ← 追加
     return redirect(url_for("login"))
 
 
@@ -116,28 +137,128 @@ def school_specific_board():
         if user_school_id is None:
             return redirect(url_for("login"))
 
-        # スコープを'school' + school_idの形式で設定
         school_scope = f"school{user_school_id}"
 
-        # 指定されたスコープの投稿を取得
         posts = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).all()
 
-        # 掲示板タイトル用にschool_nameを取得
         school_info = School.query.filter_by(school_id=user_school_id).first()
         board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
 
-        return render_template("home.html", user=session["name"], posts=posts, board_title=board_title)
+        return render_template("home.html",
+                               user=session["name"],
+                               posts=posts,
+                               board_title=board_title,
+                               current_scope=school_scope)  # ← 追加
     return redirect(url_for("login"))
 
 
 @app.route("/home/notice_board")
 def notice_board():
     if "role" in session and session["role"] == "student":
-        # 'notice0'から'notice8'までのスコープに合致する投稿を取得
-        notice_scopes = [f'notice{i}' for i in range(9)]
+        user_school_id = session.get("school_id")
+        notice_scopes = []
+        if user_school_id is not None:
+            notice_scopes.append(f'notice{user_school_id}') # ユーザーの所属校舎への通知
+
+        # school_idが0のユーザーにのみnotice0を表示
+        if user_school_id == 0:
+            notice_scopes.append('notice0') 
+
         posts = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板")
+        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板", current_scope="notice0")
     return redirect(url_for("login"))
+
+@app.route("/post", methods=["POST"])
+def submit_post():
+    if "user_id" not in session or session["role"] != "student":
+        return redirect(url_for("login"))
+
+    content = request.form.get("content")
+    scope = request.form.get("scope")
+
+    if not content or not scope:
+        flash("投稿内容が不正です。", "error")
+        return redirect(url_for("home"))
+
+    new_post = Post(
+        user_id=session["user_id"],
+        content=content,
+        scope=scope
+    )
+    db.session.add(new_post)
+    db.session.commit()
+
+    # スコープに応じて掲示板にリダイレクト
+    if scope == "public":
+        return redirect(url_for("school_wide_board"))
+    elif scope.startswith("school"):
+        return redirect(url_for("school_specific_board"))
+    else:
+        return redirect(url_for("home"))
+
+@app.route("/post/delete/<int:post_id>", methods=["POST"])
+def delete_post(post_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    post = Post.query.get(post_id)
+
+    if not post:
+        flash("投稿が見つかりませんでした。", "error")
+        # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
+        if "admin" in request.referrer:
+            return redirect(url_for("admin_post_management"))
+        return redirect(url_for("home"))
+
+    # 削除権限の確認：本人または管理者
+    if post.user_id != session["user_id"] and session["role"] != "admin":
+        flash("削除権限がありません。", "error")
+        if "admin" in request.referrer:
+            return redirect(url_for("admin_post_management"))
+        return redirect(url_for("home"))
+
+    # 関連コメントを削除
+    Comment.query.filter_by(post_id=post.post_id).delete()
+
+    db.session.delete(post)
+    db.session.commit()
+
+    flash("投稿を削除しました。", "success")
+    # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
+    if "admin" in request.referrer:
+        return redirect(url_for("admin_post_management"))
+    # スコープに応じてリダイレクト
+    if post.scope == "public":
+        return redirect(url_for("school_wide_board"))
+    elif post.scope.startswith("school"):
+        return redirect(url_for("school_specific_board"))
+    else:
+        return redirect(url_for("home"))
+
+@app.route("/comment/<int:post_id>", methods=["POST"])
+def add_comment(post_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    content = request.form.get("comment_content")
+    if not content:
+        flash("コメント内容を入力してください。", "error")
+        return redirect(request.referrer)
+
+    post = Post.query.get(post_id)
+    if not post:
+        flash("投稿が見つかりません。", "error")
+        return redirect(url_for("home"))
+
+    comment = Comment(
+        post_id=post_id,
+        user_id=session["user_id"],
+        content=content
+    )
+    db.session.add(comment)
+    db.session.commit()
+
+    return redirect(request.referrer)
 
 
 #プロフィール確認画面
@@ -206,6 +327,39 @@ def admin_dashboard():
     if "role" in session and session["role"] == "admin":
         return render_template("admin_dashboard.html", user=session["name"])
     return redirect(url_for("login"))
+
+
+@app.route("/admin/post_management", methods=["GET", "POST"])
+def admin_post_management():
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    # POSTリクエスト（通知用投稿の作成）
+    if request.method == "POST":
+        content = request.form.get("content")
+        notice_scope = request.form.get("notice_scope")
+
+        if not content or not notice_scope:
+            flash("投稿内容または通知先が不正です。", "error")
+            return redirect(url_for("admin_post_management"))
+        
+        # 通知用投稿を作成
+        new_post = Post(
+            user_id=session["user_id"],
+            content=content,
+            scope=notice_scope
+        )
+        db.session.add(new_post)
+        db.session.commit()
+        
+        flash("新しい通知を投稿しました。", "success")
+        return redirect(url_for("admin_post_management"))
+
+    # GETリクエスト（投稿一覧の表示）
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    schools = School.query.all()  # すべての校舎情報を取得
+    return render_template("admin_post_management.html", posts=posts, schools=schools)
+
 
 @app.route("/logout")
 def logout():
