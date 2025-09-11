@@ -5,6 +5,26 @@
     <h2 class="text-3xl font-bold text-gray-800 mb-6">投稿管理</h2>
     <p class="text-gray-600 mb-8">すべての投稿を管理できます。</p>
 
+    <div class="mb-8">
+        <label for="board_select" class="block text-sm font-medium text-gray-700 mb-2">掲示板を選択:</label>
+        <select id="board_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="{{ url_for('admin_post_management') }}" {% if not current_scope %}selected{% endif %}>すべて</option>
+            <option value="{{ url_for('admin_post_management', scope='public') }}" {% if current_scope == 'public' %}selected{% endif %}>校舎間掲示板</option>
+            {% for school in schools %}
+                <option value="{{ url_for('admin_post_management', scope='school' + school.school_id|string) }}" {% if current_scope == 'school' + school.school_id|string %}selected{% endif %}>{{ school.school_name }}</option>
+            {% endfor %}
+            {% for school in schools %}
+                <option value="{{ url_for('admin_post_management', scope='notice' + school.school_id|string) }}" {% if current_scope == 'notice' + school.school_id|string %}selected{% endif %}>{{ school.school_name }} 通知</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <script>
+        document.getElementById('board_select').addEventListener('change', function() {
+            window.location.href = this.value;
+        });
+    </script>
+    
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
         <h3 class="text-xl font-semibold text-gray-800 mb-4">新しい通知を投稿する</h3>
         <form action="{{ url_for('admin_post_management') }}" method="POST" class="space-y-4">
@@ -47,7 +67,6 @@
                         <span class="inline-block mr-4">投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
                         <span>スコープ: {{ post.scope }}</span>
                     </div>
-
                     <div class="flex justify-end">
                         <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
                             <button 
@@ -57,14 +76,11 @@
                             </button>
                         </form>
                     </div>
-
                     {% if post.comments %}
                     <div class="comment-box">
                         {% for comment in post.comments %}
                         <div>
-                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>:
-                            {{ comment.content }}<br>
-                            <small style="color: #888;">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</small>
+                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>: {{ comment.content }}
                         </div>
                         {% endfor %}
                     </div>
@@ -72,9 +88,7 @@
                 </div>
             {% endfor %}
         {% else %}
-            <div class="post-box">
-                <p>現在、投稿はありません。</p>
-            </div>
+            <p class="text-gray-500 text-center">この掲示板にはまだ投稿がありません。</p>
         {% endif %}
     </div>
 </div>
