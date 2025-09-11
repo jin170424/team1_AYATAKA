@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="mb-8 text-center relative">
+            <h2 class="text-3xl font-bold text-kawaii-dark">Q&A掲示板</h2>
+            <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
+        </div>
+
+        {% if session.role == 'student' %}
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                <input 
+                    type="text" 
+                    id="question-input" 
+                    placeholder="質問を入力してください" 
+                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 placeholder-kawaii-dark/50"
+                >
+                <button 
+                    onclick="askQuestion()"
+                    class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto"
+                >
+                    <span class="text-xl">❓</span>
+                    <span>質問する</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if session.role == 'admin' %}
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                <h3 class="text-xl font-bold text-kawaii-dark mb-4">管理者回答フォーム</h3>
+                <select 
+                    id="qa-select"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 mb-4"
+                >
+                    <option value="">回答する質問を選択</option>
+                    {% for qa in qas if not qa.answer %}
+                    <option value="{{ qa.qa_id }}">{{ qa.question }}</option>
+                    {% endfor %}
+                </select>
+                <textarea 
+                    id="answer-input" 
+                    placeholder="回答を入力してください"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 mb-4 h-32"
+                ></textarea>
+                <button 
+                    onclick="postAnswer()"
+                    class="px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto"
+                >
+                    <span class="text-xl">✨</span>
+                    <span>回答を投稿</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="space-y-6 max-w-2xl mx-auto" id="qa-list">
+            {% for qa in qas %}
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" data-qa-id="{{ qa.qa_id }}">
+                <div class="mb-4">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-lg">👤</span>
+                        <span class="font-medium text-kawaii-dark">{{ qa.user.name }}</span>
+                    </div>
+                    <p class="text-lg text-kawaii-dark leading-relaxed">{{ qa.question }}</p>
+                    <div class="mt-2 text-sm text-kawaii-dark/60">
+                        {{ qa.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                </div>
+                {% if qa.answer %}
+                <div class="ml-6 pl-4 border-l-4 border-kawaii-pink/30">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="text-lg">👨‍🏫</span>
+                        <span class="font-medium text-kawaii-dark">管理者回答</span>
+                    </div>
+                    <p class="text-lg text-kawaii-dark leading-relaxed">{{ qa.answer }}</p>
+                    <div class="mt-2 text-sm text-kawaii-dark/60">
+                        {{ qa.answered_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    const socket = io();
+
+    function askQuestion() {
+        const input = document.getElementById('question-input');
+        if (input.value.trim()) {
+            socket.emit('ask_question', {question: input.value});
+            input.value = '';
+        }
+    }
+
+    function postAnswer() {
+        const qaSelect = document.getElementById('qa-select');
+        const input = document.getElementById('answer-input');
+        if (qaSelect.value && input.value.trim()) {
+            socket.emit('post_answer', {
+                qa_id: parseInt(qaSelect.value),
+                answer: input.value
+            });
+            input.value = '';
+            qaSelect.remove(qaSelect.selectedIndex);
+        }
+    }
+
+    socket.on('new_question', function(data) {
+        const qaList = document.getElementById('qa-list');
+        const qaItem = document.createElement('div');
+        qaItem.className = 'bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6';
+        qaItem.dataset.qaId = data.qa_id;
+        qaItem.innerHTML = `
+            <div class="mb-4">
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="text-lg">👤</span>
+                    <span class="font-medium text-kawaii-dark">${data.user}</span>
+                </div>
+                <p class="text-lg text-kawaii-dark leading-relaxed">${data.question}</p>
+                <div class="mt-2 text-sm text-kawaii-dark/60">
+                    ${data.created_at}
+                </div>
+            </div>
+        `;
+        qaList.insertBefore(qaItem, qaList.firstChild);
+
+        // 管理者用の選択肢を追加
+        const qaSelect = document.getElementById('qa-select');
+        if (qaSelect) {
+            const option = new Option(data.question, data.qa_id);
+            qaSelect.add(option);
+        }
+    });
+
+    socket.on('new_answer', function(data) {
+        const qaItem = document.querySelector(`[data-qa-id="${data.qa_id}"]`);
+        if (qaItem) {
+            const answerDiv = document.createElement('div');
+            answerDiv.className = 'ml-6 pl-4 border-l-4 border-kawaii-pink/30';
+            answerDiv.innerHTML = `
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="text-lg">👨‍🏫</span>
+                    <span class="font-medium text-kawaii-dark">管理者回答</span>
+                </div>
+                <p class="text-lg text-kawaii-dark leading-relaxed">${data.answer}</p>
+                <div class="mt-2 text-sm text-kawaii-dark/60">
+                    ${data.answered_at}
+                </div>
+            `;
+            qaItem.appendChild(answerDiv);
+        }
+    });
+</script>
+
+
+{% endblock %}
