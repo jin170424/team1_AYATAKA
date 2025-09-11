@@ -2,9 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
+socketio = SocketIO(app)
 
 # ====== 既存の設定 ======
 app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
@@ -62,6 +64,17 @@ class Comment(db.Model):
 
     post = db.relationship("Post", backref="comments")
     user = db.relationship("User", backref="comments")
+
+class QA(db.Model):
+    __tablename__ = "qa"
+    qa_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    question = db.Column(db.Text, nullable=False)
+    answer = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    answered_at = db.Column(db.DateTime)
+
+    user = db.relationship("User", backref="questions")
 
 
 @app.route("/")
@@ -535,7 +548,63 @@ def api_departments():
     departments = Department.query.filter_by(school_id=school_id).all()
     return [{"department_id": d.department_id, "department_name": d.department_name} for d in departments]
 
+# Q&A機能のルート
+@app.route("/qa")
+def qa_page():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    
+    qas = QA.query.order_by(QA.created_at.desc()).all()
+    return render_template("qa.html", qas=qas)
+
+# WebSocketイベントハンドラ
+@socketio.on('ask_question')
+def handle_question(data):
+    if 'user_id' not in session:
+        return
+
+    question = data.get('question')
+    if not question:
+        return
+
+    # 質問をDBに保存
+    new_qa = QA(
+        user_id=session['user_id'],
+        question=question
+    )
+    db.session.add(new_qa)
+    db.session.commit()
+
+    # 全クライアントに新しい質問を通知
+    emit('new_question', {
+        'qa_id': new_qa.qa_id,
+        'user': session['name'],
+        'question': question,
+        'created_at': new_qa.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    }, broadcast=True)
+
+@socketio.on('post_answer')
+def handle_answer(data):
+    if 'role' not in session or session['role'] != 'admin':
+        return
+
+    qa_id = data.get('qa_id')
+    answer = data.get('answer')
+    
+    qa = QA.query.get(qa_id)
+    if qa and answer:
+        qa.answer = answer
+        qa.answered_at = datetime.now()
+        db.session.commit()
+
+        # 全クライアントに回答を通知
+        emit('new_answer', {
+            'qa_id': qa_id,
+            'answer': answer,
+            'answered_at': qa.answered_at.strftime('%Y-%m-%d %H:%M:%S')
+        }, broadcast=True)
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    socketio.run(app, debug=True)
