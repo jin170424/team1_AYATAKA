@@ -89,12 +89,13 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
         student_id = request.form["username"]
         password = request.form["password"]
 
         user = User.query.filter_by(student_id=student_id).first()
-        # stored password is hashed; verify using check_password_hash
+        
         if user and check_password_hash(user.password_hash, password) or user and user.password_hash == password:
             school_info = School.query.filter_by(school_id=user.school_id).first()
             department_info = Department.query.filter_by(department_id=user.department_id).first()
@@ -108,7 +109,6 @@ def login():
             session["department_name"] = department_info.department_name if department_info else "不明"
             session["year"] = user.year
 
-            # student_idの1桁目を校舎識別子としてセッションに保存
             session["school_identifier"] = student_id[0]
 
             user.last_login = datetime.now()
@@ -118,8 +118,11 @@ def login():
                 return redirect(url_for("home"))
             elif user.role == "admin":
                 return redirect(url_for("admin_dashboard"))
+        
+        error = "ユーザー名またはパスワードが違います"
+        # ログイン失敗時に学籍番号を保持
+        return render_template("login.html", error=error, username=student_id)
 
-        return render_template("login.html", error="ユーザー名またはパスワードが違います")
     return render_template("login.html")
 
 # 既存の/homeルートは削除または変更
