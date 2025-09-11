@@ -340,7 +340,6 @@ def admin_post_management():
             flash("投稿内容または通知先が不正です。", "error")
             return redirect(url_for("admin_post_management"))
         
-        # 通知用投稿を作成
         new_post = Post(
             user_id=session["user_id"],
             content=content,
@@ -353,9 +352,18 @@ def admin_post_management():
         return redirect(url_for("admin_post_management"))
 
     # GETリクエスト（投稿一覧の表示）
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    schools = School.query.all()  # すべての校舎情報を取得
-    return render_template("admin_post_management.html", posts=posts, schools=schools)
+    # URLパラメータからscopeを取得
+    scope_filter = request.args.get('scope')
+    
+    query = Post.query.order_by(Post.created_at.desc())
+    
+    if scope_filter:
+        query = query.filter_by(scope=scope_filter)
+    
+    posts = query.all()
+    schools = School.query.all()
+    
+    return render_template("admin_post_management.html", posts=posts, schools=schools, current_scope=scope_filter)
 
 
 @app.route("/logout")
