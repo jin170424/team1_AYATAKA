@@ -169,14 +169,14 @@
                 {% if pagination.has_prev %}
                 <a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}"
                     class="px-4 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple transition-all duration-200 shadow-md">
-                    <span class="text-sm">⬅️ 上一頁</span>
+                    <span class="text-sm">⬅️ 前へ</span>
                 </a>
                 {% else %}
-                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">⬅️ 上一頁</span>
+                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">⬅️ 次へ</span>
                 {% endif %}
 
                 <span class="text-lg font-bold text-kawaii-dark">
-                    頁數 {{ pagination.page }} / {{ pagination.pages }}
+                    ページ {{ pagination.page }} / {{ pagination.pages }}
                 </span>
 
                 {% if pagination.has_next %}
