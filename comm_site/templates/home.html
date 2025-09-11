@@ -3,40 +3,45 @@
 {% block content %}
 <div class="min-h-screen">
     <!-- ハンバーガーメニュー -->
-    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300" id="sideMenu">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300"
+        id="sideMenu">
         <div class="p-6 space-y-6">
             <div class="flex items-center justify-between">
                 <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
-            
+
             <nav class="space-y-4">
-                <a href="{{ url_for('school_wide_board') }}" 
-                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                <a href="{{ url_for('school_wide_board') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
                     <span class="text-xl">🏫</span>
                     <span class="font-medium group-hover:text-kawaii-pink">校舎間掲示板</span>
                 </a>
                 <a href="{{ url_for('school_specific_board') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                     <span>{{ session.get('school_name', '用掲示板') }}</span>
                 </a>
                 <a href="{{ url_for('notice_board') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                     <span>通知用掲示板</span>
                 </a>
                 <a href="{{ url_for('qa_page') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Q&A</span>
                 </a>
@@ -47,9 +52,10 @@
     <!-- メインコンテンツ -->
     <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- ハンバーガーメニューボタン -->
-        <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+        <button onclick="toggleMenu()"
+            class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
             <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
 
@@ -60,121 +66,136 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-    <!-- 投稿フォーム -->
-    {% if session["role"] == "student" and current_scope != 'notice0' %}
-    <div class="max-w-2xl mx-auto mb-8">
-        <form action="{{ url_for('submit_post') }}" method="POST" class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
-            <textarea 
-                name="content" 
-                rows="4" 
-                placeholder="投稿内容を入力してください" 
-                required
-                class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"
-            ></textarea>
-            <input type="hidden" name="scope" value="{{ current_scope }}">
-            <button 
-                type="submit"
-                class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto"
-            >
-                <span class="text-xl">✨</span>
-                <span>投稿する</span>
-            </button>
-        </form>
-    </div>
-    {% endif %}
+        <!-- 投稿フォーム -->
+        {% if session["role"] == "student" and current_scope != 'notice0' %}
+        <div class="max-w-2xl mx-auto mb-8">
+            <form action="{{ url_for('submit_post') }}" method="POST"
+                class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
+                <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required
+                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
+                <input type="hidden" name="scope" value="{{ current_scope }}">
+                <button type="submit"
+                    class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto">
+                    <span class="text-xl">✨</span>
+                    <span>投稿する</span>
+                </button>
+            </form>
+        </div>
+        {% endif %}
 
-    <div class="space-y-6 max-w-2xl mx-auto">
-        {% if posts %}
+        <div class="space-y-6 max-w-2xl mx-auto">
+            {% if posts %}
             {% for post in posts %}
-                <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
-                    <div class="mb-4">
-                        <p class="text-lg text-kawaii-dark leading-relaxed">{{ post.content }}</p>
-                        <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
-                            <span class="text-lg">👤</span>
-                            <span>
-                                {{ post.author.name if post.author else '不明' }}
-                                {% if post.author.school and post.author.department %}
-                                ({{ post.author.school.school_name }}・{{ post.author.department.department_name }})
-                                {% elif post.author.school %}
-                                ({{ post.author.school.school_name }})
-                                {% endif %}
-                            </span>
-                            <span class="text-kawaii-dark/40">•</span>
-                            <span>{{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
-                        </div>
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
+                <div class="mb-4">
+                    <p class="text-lg text-kawaii-dark leading-relaxed">{{ post.content }}</p>
+                    <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
+                        <span class="text-lg">👤</span>
+                        <span>
+                            {{ post.author.name if post.author else '不明' }}
+                            {% if post.author.school and post.author.department %}
+                            ({{ post.author.school.school_name }}・{{ post.author.department.department_name }})
+                            {% elif post.author.school %}
+                            ({{ post.author.school.school_name }})
+                            {% endif %}
+                        </span>
+                        <span class="text-kawaii-dark/40">•</span>
+                        <span>{{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
                     </div>
+                </div>
 
-                    <!-- 投稿削除ボタン -->
-                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
-                    <div class="mt-2">
-                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button type="submit" class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
-                                <span class="text-sm">🗑️</span>
-                                <span class="text-sm font-medium">削除</span>
-                            </button>
-                        </form>
+                <!-- 投稿削除ボタン -->
+                {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
+                <div class="mt-2">
+                    <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST"
+                        onsubmit="return confirm('本当に削除しますか？')">
+                        <button type="submit"
+                            class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
+                            <span class="text-sm">🗑️</span>
+                            <span class="text-sm font-medium">削除</span>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- コメントセクション -->
+                <div class="mt-4">
+                    <!-- コメントトグルボタン -->
+                    {% if post.comments %}
+                    <button onclick="toggleComments('comments-{{ post.post_id }}')"
+                        class="w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200">
+                        <span class="text-sm text-kawaii-dark flex items-center space-x-2">
+                            <span class="text-kawaii-purple">💬</span>
+                            <span>{{ post.comments|length }}件のコメント</span>
+                        </span>
+                        <svg id="arrow-{{ post.post_id }}"
+                            class="w-5 h-5 text-kawaii-dark/40 transform transition-transform duration-200" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <!-- コメント一覧（デフォルトで非表示） -->
+                    <div id="comments-{{ post.post_id }}" class="hidden mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
+                        {% for comment in post.comments %}
+                        <div class="flex flex-col">
+                            <div class="flex space-x-2">
+                                <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else
+                                    "不明" }}</span>
+                                <span class="text-kawaii-dark">{{ comment.content }}</span>
+                            </div>
+                            <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% endif %}
 
-                    <!-- コメントセクション -->
-                    <div class="mt-4">
-                        <!-- コメントトグルボタン -->
-                        {% if post.comments %}
-                        <button 
-                            onclick="toggleComments('comments-{{ post.post_id }}')"
-                            class="w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200"
-                        >
-                            <span class="text-sm text-kawaii-dark flex items-center space-x-2">
-                                <span class="text-kawaii-purple">💬</span>
-                                <span>{{ post.comments|length }}件のコメント</span>
-                            </span>
-                            <svg id="arrow-{{ post.post_id }}" class="w-5 h-5 text-kawaii-dark/40 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
-                        </button>
-
-                        <!-- コメント一覧（デフォルトで非表示） -->
-                        <div id="comments-{{ post.post_id }}" class="hidden mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
-                            {% for comment in post.comments %}
-                            <div class="flex flex-col">
-                                <div class="flex space-x-2">
-                                    <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else "不明" }}</span>
-                                    <span class="text-kawaii-dark">{{ comment.content }}</span>
-                                </div>
-                                <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</div>
-                            </div>
-                            {% endfor %}
+                    <!-- コメント投稿フォーム -->
+                    <form class="mt-2" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
+                        <div class="flex space-x-2">
+                            <textarea name="comment_content" rows="1" placeholder="コメントを書く" required
+                                class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
+                            <button type="submit"
+                                class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                💭
+                            </button>
                         </div>
-                        {% endif %}
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            <div class="flex justify-center items-center space-x-4 mt-8">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}"
+                    class="px-4 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple transition-all duration-200 shadow-md">
+                    <span class="text-sm">⬅️ 上一頁</span>
+                </a>
+                {% else %}
+                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">⬅️ 上一頁</span>
+                {% endif %}
 
-                        <!-- コメント投稿フォーム -->
-                        <form class="mt-2" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
-                            <div class="flex space-x-2">
-                                <textarea 
-                                    name="comment_content" 
-                                    rows="1" 
-                                    placeholder="コメントを書く" 
-                                    required
-                                    class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
-                                ></textarea>
-                                <button 
-                                    type="submit"
-                                    class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm"
-                                >
-                                    💭
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                {% endfor %}
+                <span class="text-lg font-bold text-kawaii-dark">
+                    頁數 {{ pagination.page }} / {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for(request.endpoint, page=pagination.next_num) }}"
+                    class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                    <span class="text-sm">下一頁 ➡️</span>
+                </a>
+                {% else %}
+                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">下一頁 ➡️</span>
+                {% endif %}
+            </div>
+
             {% else %}
-                <div class="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl p-12 text-center relative overflow-hidden">
-                    <div class="text-6xl mb-6 animate-bounce-slow">📝</div>
-                    <p class="text-xl text-kawaii-purple font-medium">
-                        まだ通知はありません！<br>
-                    </p>
-                </div>
+            <div class="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl p-12 text-center relative overflow-hidden">
+                <div class="text-6xl mb-6 animate-bounce-slow">📝</div>
+                <p class="text-xl text-kawaii-purple font-medium">
+                    まだ通知はありません！<br>
+                </p>
+            </div>
             {% endif %}
         </div>
 
@@ -187,9 +208,9 @@
         const menu = document.getElementById('sideMenu');
         menu.classList.toggle('-translate-x-full');
     }
-    
+
     // 初期状態でメニューを閉じる
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const menu = document.getElementById('sideMenu');
         menu.classList.add('-translate-x-full');
     });

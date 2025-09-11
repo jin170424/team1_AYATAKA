@@ -13,6 +13,8 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhos
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+POSTS_PER_PAGE = 10
+
 # ====== 既存のモデル ======
 class User(db.Model):
     __tablename__ = "User"
@@ -131,12 +133,18 @@ def home():
 @app.route("/home/school_wide")
 def school_wide_board():
     if "role" in session and session["role"] == "student":
-        posts = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).all()
+        page = request.args.get('page', 1, type=int)
+        
+        posts_pagination = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=POSTS_PER_PAGE, error_out=False
+        )
+        
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts,
+                               posts=posts_pagination.items,  
+                               pagination=posts_pagination,     
                                board_title="校舎間掲示板",
-                               current_scope="public")  # ← 追加
+                               current_scope="public")
     return redirect(url_for("login"))
 
 
@@ -148,35 +156,55 @@ def school_specific_board():
             return redirect(url_for("login"))
 
         school_scope = f"school{user_school_id}"
+        
+        page = request.args.get('page', 1, type=int)
 
-        posts = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).all()
+        posts_pagination = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).paginate(
+            page=page, per_page=POSTS_PER_PAGE, error_out=False
+        )
 
         school_info = School.query.filter_by(school_id=user_school_id).first()
         board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
 
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts,
+                               posts=posts_pagination.items,  
+                               pagination=posts_pagination,     
                                board_title=board_title,
-                               current_scope=school_scope)  # ← 追加
+                               current_scope=school_scope)
     return redirect(url_for("login"))
+
 
 
 @app.route("/home/notice_board")
 def notice_board():
-    if "role" in session and session["role"] == "student":
-        user_school_id = session.get("school_id")
-        notice_scopes = []
-        if user_school_id is not None:
-            notice_scopes.append(f'notice{user_school_id}') # ユーザーの所属校舎への通知
-
-        # school_idが0のユーザーにのみnotice0を表示
-        if user_school_id == 0:
-            notice_scopes.append('notice0') 
-
-        posts = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).all()
-        return render_template("home.html", user=session["name"], posts=posts, board_title="通知用掲示板", current_scope="notice0")
-    return redirect(url_for("login"))
+    if "role" not in session or session["role"] != "student":
+        return redirect(url_for("login"))
+    
+    page = request.args.get('page', 1, type=int)
+    
+    user_school_id = session.get("school_id")
+    notice_scopes = []
+    
+    # ユーザーの所属校舎への通知
+    if user_school_id is not None:
+        notice_scopes.append(f'notice{user_school_id}')
+        
+    # school_idが0のユーザー（例：全学生）にのみnotice0を表示
+    if user_school_id == 0:
+        notice_scopes.append('notice0')
+    
+    # paginationを使って投稿を取得する
+    posts_pagination = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=POSTS_PER_PAGE, error_out=False
+    )
+    
+    return render_template("home.html", 
+                           user=session["name"], 
+                           posts=posts_pagination.items, 
+                           pagination=posts_pagination,
+                           board_title="通知用掲示板", 
+                           current_scope="notice0")
 
 @app.route("/post", methods=["POST"])
 def submit_post():
