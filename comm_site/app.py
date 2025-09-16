@@ -363,6 +363,28 @@ def change_password():
     # GETリクエストの場合、フォームを表示
     return render_template("change_password.html")
 
+# 🔽🔽🔽 この関数を追記 🔽🔽🔽
+@app.route("/my_posts")
+def my_posts():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    page = request.args.get('page', 1, type=int)
+    
+    # ログインユーザーの投稿をページネーション付きで取得
+    posts_pagination = Post.query.filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=POSTS_PER_PAGE, error_out=False
+    )
+    
+    # home.htmlを再利用して、自分の投稿一覧を表示
+    return render_template("home.html", 
+                           user=session["name"], 
+                           posts=posts_pagination.items, 
+                           pagination=posts_pagination,
+                           board_title=f"{session['name']}さんの投稿一覧", 
+                           current_scope="my_posts")
+# 🔼🔼🔼 ここまで 🔼🔼🔼
+
 @app.route("/admin")
 def admin_dashboard():
     if "role" in session and session["role"] == "admin":
