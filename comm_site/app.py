@@ -91,12 +91,13 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
         student_id = request.form["username"]
         password = request.form["password"]
 
         user = User.query.filter_by(student_id=student_id).first()
-        # stored password is hashed; verify using check_password_hash
+        
         if user and check_password_hash(user.password_hash, password) or user and user.password_hash == password:
             school_info = School.query.filter_by(school_id=user.school_id).first()
             department_info = Department.query.filter_by(department_id=user.department_id).first()
@@ -110,7 +111,6 @@ def login():
             session["department_name"] = department_info.department_name if department_info else "不明"
             session["year"] = user.year
 
-            # student_idの1桁目を校舎識別子としてセッションに保存
             session["school_identifier"] = student_id[0]
 
             user.last_login = datetime.now()
@@ -120,8 +120,11 @@ def login():
                 return redirect(url_for("home"))
             elif user.role == "admin":
                 return redirect(url_for("admin_dashboard"))
+        
+        error = "ユーザー名またはパスワードが違います"
+        # ログイン失敗時に学籍番号を保持
+        return render_template("login.html", error=error, username=student_id)
 
-        return render_template("login.html", error="ユーザー名またはパスワードが違います")
     return render_template("login.html")
 
 # 既存の/homeルートは削除または変更
@@ -261,6 +264,10 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> jin5
     # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
     if "admin" in request.referrer:
         return redirect(url_for("admin_post_management"))
@@ -366,19 +373,19 @@ def admin_dashboard():
     return redirect(url_for("login"))
 
 
-@app.route("/admin/post_management", methods=["GET", "POST"])
-def admin_post_management():
+@app.route("/admin/create_notice", methods=["GET", "POST"])
+def create_notice():
     if "role" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
-    # POSTリクエスト（通知用投稿の作成）
+    # POSTリクエスト（フォームが送信された時）
     if request.method == "POST":
         content = request.form.get("content")
         notice_scope = request.form.get("notice_scope")
 
         if not content or not notice_scope:
             flash("投稿内容または通知先が不正です。", "error")
-            return redirect(url_for("admin_post_management"))
+            return redirect(url_for("create_notice"))
         
         new_post = Post(
             user_id=session["user_id"],
@@ -391,19 +398,48 @@ def admin_post_management():
         flash("新しい通知を投稿しました。", "success")
         return redirect(url_for("admin_post_management"))
 
+    # GETリクエスト（ページを最初に表示する時）
+    schools = School.query.all()
+    return render_template("create_notice.html", schools=schools)
+
+
+@app.route("/admin/post_management", methods=["GET"])
+def admin_post_management():
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
     # GETリクエスト（投稿一覧の表示）
-    # URLパラメータからscopeを取得
+    # URLパラメータから各種フィルタとページ番号を取得
     scope_filter = request.args.get('scope')
+    user_filter = request.args.get('user_id', type=int)
+    page = request.args.get('page', 1, type=int)
+
+    # クエリのベースを作成
+    query = Post.query
     
-    query = Post.query.order_by(Post.created_at.desc())
-    
+    # スコープで絞り込み
     if scope_filter:
         query = query.filter_by(scope=scope_filter)
     
-    posts = query.all()
-    schools = School.query.all()
+    # ユーザーで絞り込み
+    if user_filter:
+        query = query.filter_by(user_id=user_filter)
+
+    # ページネーションを適用して投稿を取得
+    posts_pagination = query.order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=10, error_out=False
+    )
     
-    return render_template("admin_post_management.html", posts=posts, schools=schools, current_scope=scope_filter)
+    schools = School.query.all()
+    users = User.query.order_by(User.name).all()
+    
+    return render_template("admin_post_management.html", 
+                           posts=posts_pagination.items,
+                           pagination=posts_pagination,
+                           schools=schools,
+                           users=users,
+                           current_scope=scope_filter,
+                           current_user_id=user_filter)
 
 
 @app.route("/logout")
@@ -630,6 +666,27 @@ def handle_answer(data):
             'answer': answer,
             'answered_at': qa.answered_at.strftime('%Y-%m-%d %H:%M:%S')
         }, broadcast=True)
+
+
+@app.route("/admin/comment/delete/<int:comment_id>", methods=["POST"])
+def delete_comment(comment_id):
+    # 管理者でなければログインページへ
+    if "role" not in session or session["role"] != "admin":
+        return redirect(url_for("login"))
+
+    comment = Comment.query.get(comment_id)
+    if not comment:
+        flash("コメントが見つかりませんでした。", "error")
+        # 元のページに戻る（なければ投稿管理トップへ）
+        return redirect(request.referrer or url_for("admin_post_management"))
+
+    db.session.delete(comment)
+    db.session.commit()
+    flash("コメントを削除しました。", "success")
+    
+    # 元のページに戻る
+    return redirect(request.referrer or url_for("admin_post_management"))
+
 
 if __name__ == "__main__":
     with app.app_context():

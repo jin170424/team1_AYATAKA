@@ -7,20 +7,20 @@
                 <div class="space-y-4">
                     <div>
                         <label for="username" class="block text-sm font-medium text-kawaii-dark mb-1">学籍番号</label>
-                        <input id="username" name="username" type="text" required 
-                               class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 placeholder-kawaii-dark/50" 
-                               placeholder="例: 0241101">
+                        <input id="username" name="username" type="text" required
+                               class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 placeholder-kawaii-dark/50"
+                               placeholder="例: 0241101" value="{{ username if username is defined else '' }}">
                     </div>
                     <div>
                         <label for="password" class="block text-sm font-medium text-kawaii-dark mb-1">パスワード</label>
-                        <input id="password" name="password" type="password" required 
-                               class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 placeholder-kawaii-dark/50" 
+                        <input id="password" name="password" type="password" required
+                               class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 placeholder-kawaii-dark/50"
                                placeholder="パスワードを入力">
                     </div>
                 </div>
 
                 <div>
-                    <button type="submit" 
+                    <button type="submit"
                             class="w-full px-6 py-3 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center justify-center space-x-2">
                         <span>ログイン</span>
                     </button>
