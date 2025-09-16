@@ -264,10 +264,7 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
 
-<<<<<<< HEAD
-=======
 
->>>>>>> jin5
     # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
     if "admin" in request.referrer:
         return redirect(url_for("admin_post_management"))
