@@ -2,8 +2,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    <!-- ハンバーガーメニュー -->
-    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300" id="sideMenu">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300 -translate-x-full" id="sideMenu">
         <div class="p-6 space-y-6">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
@@ -15,23 +14,19 @@
             </div>
             
             <nav class="space-y-4">
-                <a href="{{ url_for('admin_dashboard') }}" 
-                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                <a href="{{ url_for('admin_dashboard') }}" class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
                     <span class="text-xl">📊</span>
                     <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
                 </a>
-                <a href="{{ url_for('user_management_select') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                <a href="{{ url_for('user_management_select') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
                     <span class="text-xl">👥</span>
                     <span>ユーザー管理</span>
                 </a>
-                <a href="{{ url_for('admin_post_management') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                <a href="{{ url_for('admin_post_management') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
                     <span class="text-xl">📝</span>
                     <span>投稿管理</span>
                 </a>
-                <a href="{{ url_for('qa_page') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                <a href="{{ url_for('qa_page') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
                     <span class="text-xl">❓</span>
                     <span>Q&A管理</span>
                 </a>
@@ -39,117 +34,145 @@
         </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="max-w-4xl mx-auto px-4 py-8">
-        <!-- ハンバーガーメニューボタン -->
         <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
             <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
         </button>
         
-<div class="container mx-auto px-4 py-8 max-w-4xl">
-    <h2 class="text-3xl font-bold text-gray-800 mb-6">投稿管理</h2>
-    <p class="text-gray-600 mb-8">すべての投稿を管理できます。</p>
+        <div class="container mx-auto px-4 py-8 max-w-4xl">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">投稿管理</h2>
+            <p class="text-gray-600 mb-8">すべての投稿を管理できます。</p>
 
-    <div class="mb-8">
-        <label for="board_select" class="block text-sm font-medium text-gray-700 mb-2">掲示板を選択:</label>
-        <select id="board_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <option value="{{ url_for('admin_post_management') }}" {% if not current_scope %}selected{% endif %}>すべて</option>
-            <option value="{{ url_for('admin_post_management', scope='public') }}" {% if current_scope == 'public' %}selected{% endif %}>校舎間掲示板</option>
-            {% for school in schools %}
-                <option value="{{ url_for('admin_post_management', scope='school' + school.school_id|string) }}" {% if current_scope == 'school' + school.school_id|string %}selected{% endif %}>{{ school.school_name }}</option>
-            {% endfor %}
-            {% for school in schools %}
-                <option value="{{ url_for('admin_post_management', scope='notice' + school.school_id|string) }}" {% if current_scope == 'notice' + school.school_id|string %}selected{% endif %}>{{ school.school_name }} 通知</option>
-            {% endfor %}
-        </select>
-    </div>
-    
-    <script>
-        document.getElementById('board_select').addEventListener('change', function() {
-            window.location.href = this.value;
-        });
-    </script>
-    
-    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h3 class="text-xl font-semibold text-gray-800 mb-4">新しい通知を投稿する</h3>
-        <form action="{{ url_for('admin_post_management') }}" method="POST" class="space-y-4">
-            <div class="space-y-2">
-                <textarea 
-                    name="content" 
-                    rows="4" 
-                    placeholder="通知内容を入力してください" 
-                    required
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"></textarea>
-            </div>
-            <div class="flex items-center space-x-4">
-                <label for="notice_scope" class="text-gray-700">通知先:</label>
-                <select 
-                    name="notice_scope" 
-                    id="notice_scope"
-                    class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    {% if schools %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div>
+                    <label for="board_select" class="block text-sm font-medium text-gray-700 mb-2">掲示板で絞り込み:</label>
+                    <select id="board_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">すべて</option>
+                        <option value="public" {% if current_scope == 'public' %}selected{% endif %}>校舎間掲示板</option>
                         {% for school in schools %}
-                            <option value="notice{{ school.school_id }}">{{ school.school_name }}</option>
+                            <option value="school{{ school.school_id }}" {% if current_scope == 'school' + school.school_id|string %}selected{% endif %}>{{ school.school_name }}</option>
                         {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-            <button 
-                type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
-                通知を投稿
-            </button>
-        </form>
-    </div>
-
-    <div class="space-y-4">
-        {% if posts %}
-            {% for post in posts %}
-                <div id="post-{{ post.post_id }}" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
-                    <p class="text-gray-800 text-lg mb-4">{{ post.content }}</p>
-                    <div class="text-sm text-gray-500 mb-4">
-                        <span class="inline-block mr-4">投稿者: {{ post.author.name if post.author else '不明' }}</span>
-                        <span class="inline-block mr-4">投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
-                        <span>スコープ: {{ post.scope }}</span>
-                    </div>
-                    <div class="flex justify-end">
-                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button 
-                                type="submit"
-                                class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
-                                投稿を削除
-                            </button>
-                        </form>
-                    </div>
-                    {% if post.comments %}
-                    <div class="comment-box">
-                        {% for comment in post.comments %}
-                        <div>
-                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>: {{ comment.content }}
-                        </div>
+                        {% for school in schools %}
+                            <option value="notice{{ school.school_id }}" {% if current_scope == 'notice' + school.school_id|string %}selected{% endif %}>{{ school.school_name }} 通知</option>
                         {% endfor %}
-                    </div>
-                    {% endif %}
+                    </select>
                 </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-gray-500 text-center">この掲示板にはまだ投稿がありません。</p>
-        {% endif %}
+                <div>
+                    <label for="user_select" class="block text-sm font-medium text-gray-700 mb-2">ユーザーで絞り込み:</label>
+                    <select id="user_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">すべてのユーザー</option>
+                        {% for user in users %}
+                            <option value="{{ user.user_id }}" {% if current_user_id == user.user_id %}selected{% endif %}>{{ user.name }} ({{ user.student_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <script>
+                function applyFilters() {
+                    const scope = document.getElementById('board_select').value;
+                    const userId = document.getElementById('user_select').value;
+                    
+                    const params = new URLSearchParams();
+                    if (scope) {
+                        params.append('scope', scope);
+                    }
+                    if (userId) {
+                        params.append('user_id', userId);
+                    }
+                    
+                    window.location.href = "{{ url_for('admin_post_management') }}" + '?' + params.toString();
+                }
+
+                document.getElementById('board_select').addEventListener('change', applyFilters);
+                document.getElementById('user_select').addEventListener('change', applyFilters);
+            </script>
+            
+            <div class="space-y-4">
+                {% if posts %}
+                    {% for post in posts %}
+                        <div id="post-{{ post.post_id }}" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+                            <p class="text-gray-800 text-lg mb-4">{{ post.content }}</p>
+                            <div class="text-sm text-gray-500 mb-4">
+                                <span class="inline-block mr-4">投稿者: {{ post.author.name if post.author else '不明' }}</span>
+                                <span class="inline-block mr-4">投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+                                <span>スコープ: {{ post.scope }}</span>
+                            </div>
+                            <div class="flex justify-end">
+                                <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
+                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                                        投稿を削除
+                                    </button>
+                                </form>
+                            </div>
+                            {% if post.comments %}
+                            <div class="comment-box mt-4 border-t pt-4 space-y-2">
+                                {% for comment in post.comments %}
+                                <div class="text-sm text-gray-700 flex justify-between items-center py-1">
+                                    <div>
+                                        <strong class="font-semibold">{{ comment.user.name if comment.user else "不明" }}</strong>: {{ comment.content }}
+                                    </div>
+                                    <form action="{{ url_for('delete_comment', comment_id=comment.comment_id) }}" method="POST" onsubmit="return confirm('このコメントを本当に削除しますか？')">
+                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">削除</button>
+                                    </form>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center">この条件に一致する投稿はありません。</p>
+                {% endif %}
+            </div>
+
+            {% if pagination %}
+            <div class="mt-8 flex justify-center items-center space-x-2">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('admin_post_management', page=pagination.prev_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        &laquo; 前へ
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                        &laquo; 前へ
+                    </span>
+                {% endif %}
+                
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        {% if pagination.page == page_num %}
+                            <span class="px-4 py-2 bg-blue-500 border border-blue-500 rounded-md text-sm font-medium text-white">{{ page_num }}</span>
+                        {% else %}
+                            <a href="{{ url_for('admin_post_management', page=page_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                {{ page_num }}
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <span class="px-4 py-2">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('admin_post_management', page=pagination.next_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        次へ &raquo;
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                        次へ &raquo;
+                    </span>
+                {% endif %}
+            </div>
+            {% endif %}
+             </div>
     </div>
 </div>
 <script>
-        // ハンバーガーメニューの制御
+    // ハンバーガーメニューの制御 (変更なし)
     function toggleMenu() {
         const menu = document.getElementById('sideMenu');
         menu.classList.toggle('-translate-x-full');
     }
-    
-    // 初期状態でメニューを閉じる
-    document.addEventListener('DOMContentLoaded', function() {
-        const menu = document.getElementById('sideMenu');
-        menu.classList.add('-translate-x-full');
-    });
 </script>
 {% endblock %}
