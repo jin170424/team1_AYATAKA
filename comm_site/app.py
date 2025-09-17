@@ -388,7 +388,6 @@ def admin_post_management():
         db.session.add(new_post)
         db.session.commit()
         
-        flash("新しい通知を投稿しました。", "success")
         return redirect(url_for("admin_post_management"))
 
     # GETリクエスト（投稿一覧の表示）
@@ -581,8 +580,32 @@ def qa_page():
     if "user_id" not in session:
         return redirect(url_for("login"))
     
-    qas = QA.query.order_by(QA.created_at.desc()).all()
-    return render_template("qa.html", qas=qas)
+    # ページネーション用のパラメータを取得
+    page = request.args.get('page', 1, type=int)
+    tab = request.args.get('tab', 'unanswered')  # デフォルトは未回答
+    
+    # 未回答と已回答をそれぞれ分頁で取得
+    if tab == 'answered':
+        # 已回答のQ&Aを取得
+        qas_pagination = QA.query.filter(QA.answer.isnot(None)).order_by(QA.created_at.desc()).paginate(
+            page=page, per_page=POSTS_PER_PAGE, error_out=False
+        )
+    else:
+        # 未回答のQ&Aを取得
+        qas_pagination = QA.query.filter(QA.answer.is_(None)).order_by(QA.created_at.desc()).paginate(
+            page=page, per_page=POSTS_PER_PAGE, error_out=False
+        )
+    
+    # 統計情報を追加（全ユーザー共通）
+    unanswered_count = QA.query.filter(QA.answer.is_(None)).count()
+    answered_count = QA.query.filter(QA.answer.isnot(None)).count()
+    
+    return render_template("qa.html", 
+                         qas=qas_pagination.items, 
+                         pagination=qas_pagination,
+                         current_tab=tab,
+                         unanswered_count=unanswered_count, 
+                         answered_count=answered_count)
 
 # WebSocketイベントハンドラ
 @socketio.on('ask_question')
@@ -602,12 +625,20 @@ def handle_question(data):
     db.session.add(new_qa)
     db.session.commit()
 
+    # 更新されたカウントを取得
+    unanswered_count = QA.query.filter(QA.answer.is_(None)).count()
+    answered_count = QA.query.filter(QA.answer.isnot(None)).count()
+
     # 全クライアントに新しい質問を通知
     emit('new_question', {
         'qa_id': new_qa.qa_id,
         'user': session['name'],
         'question': question,
-        'created_at': new_qa.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        'created_at': new_qa.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'is_admin': session.get('role') == 'admin',
+        'is_own_question': True,  # 質問者は常に自分の質問として認識
+        'unanswered_count': unanswered_count,
+        'answered_count': answered_count
     }, broadcast=True)
 
 @socketio.on('post_answer')
@@ -624,12 +655,70 @@ def handle_answer(data):
         qa.answered_at = datetime.now()
         db.session.commit()
 
+        # 更新されたカウントを取得
+        unanswered_count = QA.query.filter(QA.answer.is_(None)).count()
+        answered_count = QA.query.filter(QA.answer.isnot(None)).count()
+
         # 全クライアントに回答を通知
         emit('new_answer', {
             'qa_id': qa_id,
             'answer': answer,
+            'answered_at': qa.answered_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'user': qa.user.name,
+            'question': qa.question,
+            'created_at': qa.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'is_admin': True,  # 回答者は管理者
+            'is_own_question': False,  # 他のユーザーの質問
+            'unanswered_count': unanswered_count,
+            'answered_count': answered_count
+        }, broadcast=True)
+
+@socketio.on('update_answer')
+def handle_update_answer(data):
+    if 'role' not in session or session['role'] != 'admin':
+        return
+
+    qa_id = data.get('qa_id')
+    answer = data.get('answer')
+    
+    qa = QA.query.get(qa_id)
+    if qa and answer:
+        qa.answer = answer
+        qa.answered_at = datetime.now()  # 更新時間も更新
+        db.session.commit()
+
+        # 全クライアントに回答更新を通知
+        emit('answer_updated', {
+            'qa_id': qa_id,
+            'answer': answer,
             'answered_at': qa.answered_at.strftime('%Y-%m-%d %H:%M:%S')
         }, broadcast=True)
+
+@socketio.on('delete_qa')
+def handle_delete_qa(data):
+    qa_id = data.get('qa_id')
+    qa = QA.query.get(qa_id)
+    
+    if not qa:
+        return
+    
+    # 削除権限チェック：管理者または質問者本人
+    if session.get('role') != 'admin' and qa.user_id != session.get('user_id'):
+        return
+    
+    db.session.delete(qa)
+    db.session.commit()
+
+    # 更新されたカウントを取得
+    unanswered_count = QA.query.filter(QA.answer.is_(None)).count()
+    answered_count = QA.query.filter(QA.answer.isnot(None)).count()
+
+    # 全クライアントに削除を通知
+    emit('qa_deleted', {
+        'qa_id': qa_id,
+        'unanswered_count': unanswered_count,
+        'answered_count': answered_count
+    }, broadcast=True)
 
 if __name__ == "__main__":
     with app.app_context():
