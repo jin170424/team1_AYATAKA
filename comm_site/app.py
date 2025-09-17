@@ -795,6 +795,60 @@ def handle_delete_qa(data):
         'answered_count': answered_count
     }, broadcast=True)
 
+@app.route("/comment/delete/<int:comment_id>", methods=["POST"])
+def user_delete_comment(comment_id):
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    comment = Comment.query.get(comment_id)
+    if not comment:
+        flash("コメントが見つかりませんでした。", "error")
+        return redirect(request.referrer or url_for("home"))
+
+    # 削除権限の確認：本人または管理者
+    if comment.user_id != session["user_id"] and session["role"] != "admin":
+        flash("削除権限がありません。", "error")
+        return redirect(request.referrer or url_for("home"))
+
+    db.session.delete(comment)
+    db.session.commit()
+    flash("コメントを削除しました。", "success")
+    
+    # 元のページに戻る
+    return redirect(request.referrer or url_for("home"))
+
+# 新しい編集评论路由
+@app.route("/comment/edit/<int:comment_id>", methods=["GET", "POST"])
+def edit_comment(comment_id):
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    comment = Comment.query.get(comment_id)
+    if not comment:
+        flash("コメントが見つかりませんでした。", "error")
+        return redirect(request.referrer or url_for("home"))
+
+    # 編集権限の確認：本人または管理者
+    if comment.user_id != session["user_id"] and session["role"] != "admin":
+        flash("編集権限がありません。", "error")
+        return redirect(request.referrer or url_for("home"))
+
+    if request.method == "POST":
+        new_content = request.form.get("content")
+        if not new_content:
+            flash("コメント内容を入力してください。", "error")
+            return redirect(request.referrer or url_for("home"))
+        
+        comment.content = new_content
+        db.session.commit()
+        flash("コメントを更新しました。", "success")
+        return redirect(request.referrer or url_for("home"))
+
+    # GETリクエストの場合、編集フォームを表示
+    return render_template("home.html", comment=comment)
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

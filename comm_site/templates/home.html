@@ -130,13 +130,49 @@
 
                     <div id="comments-{{ post.post_id }}" class="hidden mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
                         {% for comment in post.comments %}
-                        <div class="flex flex-col">
-                            <div class="flex space-x-2">
-                                <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else
-                                    "不明" }}</span>
-                                <span class="text-kawaii-dark">{{ comment.content }}</span>
+                        <div class="flex flex-col" id="comment-{{ comment.comment_id }}">
+                            <div class="flex justify-between items-start">
+                                <div class="flex space-x-2 flex-grow">
+                                    <span class="text-kawaii-purple font-medium">{{ comment.user.name if comment.user else
+                                        "不明" }}</span>
+                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{ comment.content }}</span>
+                                </div>
+                                {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
+                                <div class="flex space-x-2 ml-2">
+                                    <button onclick="editComment({{ comment.comment_id }})" 
+                                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                                        ✏️ 編集
+                                    </button>
+                                    <form action="{{ url_for('user_delete_comment', comment_id=comment.comment_id) }}" method="POST" 
+                                        onsubmit="return confirm('本当に削除しますか？')" class="inline">
+                                        <button type="submit" 
+                                            class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                                            🗑️ 削除
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
+                            </div>
+                            
+                            <!-- 編集フォーム（初期状態では非表示） -->
+                            <div id="edit-form-{{ comment.comment_id }}" class="hidden mt-2">
+                                <form action="{{ url_for('edit_comment', comment_id=comment.comment_id) }}" method="POST">
+                                    <div class="flex space-x-2">
+                                        <textarea name="content" rows="2" required
+                                            class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
+                                            id="edit-textarea-{{ comment.comment_id }}">{{ comment.content }}</textarea>
+                                        <button type="submit" 
+                                            class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                            保存
+                                        </button>
+                                        <button type="button" onclick="cancelEdit({{ comment.comment_id }})"
+                                            class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                            キャンセル
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                         {% endfor %}
@@ -220,6 +256,30 @@
             commentsDiv.classList.add('hidden');
             arrowIcon.classList.remove('rotate-180');
         }
+    }
+
+    // コメント編集機能
+    function editComment(commentId) {
+        const editForm = document.getElementById('edit-form-' + commentId);
+        const commentContent = document.getElementById('comment-content-' + commentId);
+        const editTextarea = document.getElementById('edit-textarea-' + commentId);
+        
+        // 編集フォームを表示
+        editForm.classList.remove('hidden');
+        // コメント内容を非表示
+        commentContent.style.display = 'none';
+        // テキストエリアに現在の内容を設定
+        editTextarea.value = commentContent.textContent;
+    }
+
+    function cancelEdit(commentId) {
+        const editForm = document.getElementById('edit-form-' + commentId);
+        const commentContent = document.getElementById('comment-content-' + commentId);
+        
+        // 編集フォームを非表示
+        editForm.classList.add('hidden');
+        // コメント内容を表示
+        commentContent.style.display = 'inline';
     }
 </script>
 {% endblock %}
