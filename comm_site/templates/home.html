@@ -2,8 +2,7 @@
 
 {% block content %}
 <div class="min-h-screen">
-    <!-- ハンバーガーメニュー -->
-    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300 -translate-x-full"
         id="sideMenu">
         <div class="p-6 space-y-6">
             <div class="flex items-center justify-between">
@@ -49,9 +48,7 @@
         </div>
     </div>
 
-    <!-- メインコンテンツ -->
     <div class="max-w-4xl mx-auto px-4 py-8">
-        <!-- ハンバーガーメニューボタン -->
         <button onclick="toggleMenu()"
             class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
             <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,8 +63,7 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        <!-- 投稿フォーム -->
-        {% if session["role"] == "student" and current_scope != 'notice0' %}
+        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' %}
         <div class="max-w-2xl mx-auto mb-8">
             <form action="{{ url_for('submit_post') }}" method="POST"
                 class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
@@ -104,7 +100,6 @@
                     </div>
                 </div>
 
-                <!-- 投稿削除ボタン -->
                 {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                 <div class="mt-2">
                     <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST"
@@ -118,9 +113,7 @@
                 </div>
                 {% endif %}
 
-                <!-- コメントセクション -->
                 <div class="mt-4">
-                    <!-- コメントトグルボタン -->
                     {% if post.comments %}
                     <button onclick="toggleComments('comments-{{ post.post_id }}')"
                         class="w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200">
@@ -135,7 +128,6 @@
                         </svg>
                     </button>
 
-                    <!-- コメント一覧（デフォルトで非表示） -->
                     <div id="comments-{{ post.post_id }}" class="hidden mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4">
                         {% for comment in post.comments %}
                         <div class="flex flex-col">
@@ -151,7 +143,7 @@
                     </div>
                     {% endif %}
 
-                    <!-- コメント投稿フォーム -->
+                    {% if current_scope != 'my_posts' %}
                     <form class="mt-2" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
                         <div class="flex space-x-2">
                             <textarea name="comment_content" rows="1" placeholder="コメントを書く" required
@@ -162,6 +154,7 @@
                             </button>
                         </div>
                     </form>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -193,7 +186,7 @@
             <div class="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl p-12 text-center relative overflow-hidden">
                 <div class="text-6xl mb-6 animate-bounce-slow">📝</div>
                 <p class="text-xl text-kawaii-purple font-medium">
-                    まだ通知はありません！<br>
+                    まだ投稿はありません！<br>
                 </p>
             </div>
             {% endif %}
@@ -202,7 +195,6 @@
     </div>
 </div>
 
-<!-- JavaScriptでメニューの開閉を制御 -->
 <script>
     function toggleMenu() {
         const menu = document.getElementById('sideMenu');
@@ -212,7 +204,22 @@
     // 初期状態でメニューを閉じる
     document.addEventListener('DOMContentLoaded', function () {
         const menu = document.getElementById('sideMenu');
-        menu.classList.add('-translate-x-full');
+        if (!menu.classList.contains('-translate-x-full')) {
+            menu.classList.add('-translate-x-full');
+        }
     });
+
+    function toggleComments(commentsId) {
+        const commentsDiv = document.getElementById(commentsId);
+        const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
+        
+        if (commentsDiv.classList.contains('hidden')) {
+            commentsDiv.classList.remove('hidden');
+            arrowIcon.classList.add('rotate-180');
+        } else {
+            commentsDiv.classList.add('hidden');
+            arrowIcon.classList.remove('rotate-180');
+        }
+    }
 </script>
 {% endblock %}
