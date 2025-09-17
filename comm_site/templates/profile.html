@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <div class="max-w-2xl mx-auto px-4 py-8">
     <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-md p-8 border border-kawaii-lavender">
         <div class="text-center mb-8">
@@ -24,7 +25,7 @@
                 <p class="text-sm text-kawaii-purple mb-1">学科</p>
                 <p class="text-lg font-medium text-kawaii-dark">{{ user.department.department_name if user.department else 'なし' }}</p>
             </div>
-            <div class="group pb-4">
+            <div class="group border-b border-kawaii-lavender/50 pb-4 hover:border-kawaii-pink/50 transition-colors duration-300">
                 <p class="text-sm text-kawaii-purple mb-1">学年</p>
                 <p class="text-lg font-medium text-kawaii-dark">{{ user.year }}年</p>
             </div>

@@ -205,6 +205,11 @@
                                     <span class="text-lg">👤</span>
                                     <span class="text-sm font-medium text-kawaii-dark">プロフィール閲覧</span>
                                 </a>
+                                
+                                <a href="{{ url_for('my_posts') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
+                                    <span class="text-lg">📝</span>
+                                    <span class="text-sm font-medium text-kawaii-dark">自分の投稿一覧</span>
+                                </a>
                                 <a href="{{ url_for('settings') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
                                     <span class="text-lg">⚙️</span>
                                     <span class="text-sm font-medium text-kawaii-dark">設定</span>
@@ -240,7 +245,6 @@
         </div>
     </nav>
     <main class="relative">
-        <!-- Decorative background elements -->
         <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
             <div class="absolute top-0 right-0 w-96 h-96 bg-kawaii-pink/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
             <div class="absolute bottom-0 left-0 w-96 h-96 bg-kawaii-blue/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow delay-150"></div>
@@ -251,7 +255,6 @@
             {% block content %}{% endblock %}
         </div>
 
-        <!-- Floating decorative elements -->
         <div class="fixed bottom-4 right-4 text-4xl animate-bounce-slow opacity-50 pointer-events-none">🌟</div>
         <div class="fixed top-4 left-4 text-4xl animate-float opacity-50 pointer-events-none">🎀</div>
     </main>
