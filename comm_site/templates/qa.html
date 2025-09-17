@@ -115,7 +115,7 @@
                     <a href="{{ url_for('qa_page', tab='answered', page=1) }}" 
                         class="flex-1 px-4 py-3 rounded-xl font-medium transition-all duration-200 {% if current_tab == 'answered' %}bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md{% else %}bg-gray-200 text-gray-600 hover:bg-gray-300{% endif %}">
                         <span class="text-lg">✅</span>
-                        <span class="ml-2">已回答</span>
+                        <span class="ml-2">回答済み</span>
                         <span id="answered-count" class="ml-2 {% if current_tab == 'answered' %}bg-white/20{% else %}bg-gray-400 text-white{% endif %} px-2 py-1 rounded-full text-sm">{{ answered_count }}</span>
                     </a>
                 </div>
@@ -136,7 +136,7 @@
             <div class="text-center mb-6">
                 <h3 class="text-2xl font-bold text-green-600 flex items-center justify-center space-x-2">
                     <span>✅</span>
-                    <span>已回答の質問</span>
+                    <span>回答済みの質問</span>
                 </h3>
                 <div class="mt-2 w-16 h-1 bg-gradient-to-r from-green-500 to-green-600 mx-auto rounded-full"></div>
             </div>
@@ -153,7 +153,7 @@
                                 {% if current_tab == 'unanswered' %}
                                 <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">未回答</span>
                                 {% else %}
-                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">已回答</span>
+                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">回答済み</span>
                                 {% endif %}
                                 {% if qa.user_id == session.user_id %}
                                 <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">自分の質問</span>
@@ -213,7 +213,7 @@
                     </div>
                     {% endif %}
 
-                    <!-- 已回答の場合の回答表示 -->
+                    <!-- 回答済みの場合の回答表示 -->
                     {% if current_tab == 'answered' and qa.answer %}
                     <div class="ml-6 pl-4 border-l-4 border-kawaii-pink/30" id="answer-display-{{ qa.qa_id }}">
                         <div class="flex items-center justify-between mb-2">
@@ -326,7 +326,7 @@
                 <!-- ページ情報 -->
                 <div class="mt-3 text-center text-sm text-kawaii-dark/60">
                     {{ pagination.page }} / {{ pagination.pages }} ページ 
-                    (全 {{ pagination.total }} 件の{% if current_tab == 'unanswered' %}未回答{% else %}已回答{% endif %}Q&A)
+                    (全 {{ pagination.total }} 件の{% if current_tab == 'unanswered' %}未回答{% else %}回答済み{% endif %}Q&A)
                 </div>
             </div>
         </div>
