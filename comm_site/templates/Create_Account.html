@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>アカウント作成</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-12">
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
@@ -18,7 +20,8 @@
                 </div>
                 <div>
                     <label for="student_id" class="block text-sm font-medium text-gray-700">学籍番号</label>
-                    <input type="text" id="student_id" name="student_id" pattern="\d{7}" title="学籍番号は7桁の数字で入力してください" maxlength="7" minlength="7" required
+                    <input type="text" id="student_id" name="student_id" pattern="\d{7}" title="学籍番号は7桁の数字で入力してください"
+                        maxlength="7" minlength="7" required
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 <div>
@@ -46,22 +49,64 @@
                     </select>
                 </div>
 
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">パスワード</label>
+                <div class="relative">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
                     <input type="password" id="password" name="password" minlength="8" required
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        class="block w-full pr-12 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+
+                    <button type="button" id="togglePassword"
+                        class="absolute top-1/2 right-3 -translate-y-2/5 flex items-center  text-gray-500 hover:text-indigo-500">
+                        <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 
+                   9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 
+                   10.05 0 012.843-4.592M6.228 6.228A9.978 9.978 0 0112 5c4.477 0 
+                   8.268 2.943 9.542 7a9.956 9.956 0 01-4.293 5.087M15 12a3 3 0 11-6 0 
+                   3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+                        </svg>
+                    </button>
                 </div>
-                <div>
-                    <label for="confirm_password" class="block text-sm font-medium text-gray-700">パスワード再入力</label>
+
+                <div class="relative">
+                    <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">パスワード再入力</label>
                     <input type="password" id="confirm_password" name="confirm_password" minlength="8" required
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        class="block w-full pr-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+
+                    <!-- 右端の目アイコンボタン -->
+                    <button type="button" id="toggleConfirmPassword"
+                        class="absolute top-1/2 right-3 -translate-y-2/5 flex items-center text-gray-500 hover:text-indigo-500">
+                        <svg id="eyeOpenConfirm" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 
+                   9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <svg id="eyeClosedConfirm" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 
+                   10.05 0 012.843-4.592M6.228 6.228A9.978 9.978 0 0112 5c4.477 0 
+                   8.268 2.943 9.542 7a9.956 9.956 0 01-4.293 5.087M15 12a3 3 0 11-6 0 
+                   3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+                        </svg>
+                    </button>
                 </div>
 
                 <div class="flex flex-col space-y-4">
-                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <button type="submit"
+                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         アカウント作成
                     </button>
-                    <a href="{{ url_for('user_management') }}" class="text-center text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200">
+                    <a href="{{ url_for('user_management') }}"
+                        class="text-center text-sm text-indigo-600 hover:text-indigo-500 transition-colors duration-200">
                         ユーザー管理へ戻る
                     </a>
                 </div>
@@ -69,43 +114,78 @@
         </div>
     </div>
 
-<script>
-    document.getElementById("signupForm").addEventListener("submit", function(event) {
-    const password = document.getElementById("password").value;
-    const confirmPassword = document.getElementById("confirm_password").value;
+    <script>
+        document.getElementById("signupForm").addEventListener("submit", function (event) {
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirm_password").value;
 
-    if (password !== confirmPassword) {
-        alert("パスワードが一致しません。");
-        event.preventDefault();
-    }
-    });
-
-document.getElementById("school").addEventListener("change", function() {
-    const schoolId = this.value;
-    const deptSelect = document.getElementById("department");
-
-    
-    deptSelect.innerHTML = '<option value="" disabled selected>選択してください</option>';
-
-    if (schoolId) {
-        fetch(`/api/departments?school_id=${schoolId}`)
-        .then(response => response.json())
-        .then(data => {
-            data.forEach(dept => {
-                const option = document.createElement("option");
-                option.value = dept.department_id;
-                option.textContent = dept.department_name;
-                deptSelect.appendChild(option);
-            });
+            if (password !== confirmPassword) {
+                alert("パスワードが一致しません。");
+                event.preventDefault();
+            }
         });
-    }
-        const studentField = document.querySelector("input[name='student_id']");
-        let currentValue = studentField.value;
 
-        let rest = currentValue.length > 1 ? currentValue.slice(1) : "000000";
+        document.getElementById("school").addEventListener("change", function () {
+            const schoolId = this.value;
+            const deptSelect = document.getElementById("department");
 
-        studentField.value = schoolId + rest;
-});
-</script>
+
+            deptSelect.innerHTML = '<option value="" disabled selected>選択してください</option>';
+
+            if (schoolId) {
+                fetch(`/api/departments?school_id=${schoolId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(dept => {
+                            const option = document.createElement("option");
+                            option.value = dept.department_id;
+                            option.textContent = dept.department_name;
+                            deptSelect.appendChild(option);
+                        });
+                    });
+            }
+            const studentField = document.querySelector("input[name='student_id']");
+            let currentValue = studentField.value;
+
+            let rest = currentValue.length > 1 ? currentValue.slice(1) : "000000";
+
+            studentField.value = schoolId + rest;
+        });
+    </script>
+    <script>
+        document.getElementById("togglePassword").addEventListener("click", function () {
+            const passwordField = document.getElementById("password");
+            const eyeOpen = document.getElementById("eyeOpen");
+            const eyeClosed = document.getElementById("eyeClosed");
+
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                eyeOpen.classList.remove("hidden");
+                eyeClosed.classList.add("hidden");
+            } else {
+                passwordField.type = "password";
+                eyeOpen.classList.add("hidden");
+                eyeClosed.classList.remove("hidden");
+            }
+        });
+    </script>
+    <script>
+        document.getElementById("toggleConfirmPassword").addEventListener("click", function () {
+            const passwordField = document.getElementById("confirm_password");
+            const eyeOpen = document.getElementById("eyeOpenConfirm");
+            const eyeClosed = document.getElementById("eyeClosedConfirm");
+
+            if (passwordField.type === "password") {
+                passwordField.type = "text";
+                eyeOpen.classList.remove("hidden");
+                eyeClosed.classList.add("hidden");
+            } else {
+                passwordField.type = "password";
+                eyeOpen.classList.add("hidden");
+                eyeClosed.classList.remove("hidden");
+            }
+        });
+    </script>
 </body>
+
 </html>
