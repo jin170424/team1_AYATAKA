@@ -2,7 +2,8 @@
 {% block content %}
 <div class="min-h-screen">
     <!-- ハンバーガーメニュー -->
-    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300" id="sideMenu">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
+        id="sideMenu">
         <div class="p-6 space-y-6">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
@@ -101,63 +102,235 @@
         </div>
         {% endif %}
 
-        {% if session.role == 'admin' %}
+        <!-- 分類タブ（全ユーザー共通） -->
         <div class="max-w-2xl mx-auto mb-8">
-            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-kawaii-dark mb-4">管理者回答フォーム</h3>
-                <select 
-                    id="qa-select"
-                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 mb-4"
-                >
-                    <option value="">回答する質問を選択</option>
-                    {% for qa in qas if not qa.answer %}
-                    <option value="{{ qa.qa_id }}">{{ qa.question }}</option>
-                    {% endfor %}
-                </select>
-                <textarea 
-                    id="answer-input" 
-                    placeholder="回答を入力してください"
-                    class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 mb-4 h-32"
-                ></textarea>
-                <button 
-                    onclick="postAnswer()"
-                    class="px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto"
-                >
-                    <span class="text-xl">✨</span>
-                    <span>回答を投稿</span>
-                </button>
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-4">
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('qa_page', tab='unanswered', page=1) }}" 
+                        class="flex-1 px-4 py-3 rounded-xl font-medium transition-all duration-200 {% if current_tab == 'unanswered' %}bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md{% else %}bg-gray-200 text-gray-600 hover:bg-gray-300{% endif %}">
+                        <span class="text-lg">⏳</span>
+                        <span class="ml-2">未回答</span>
+                        <span id="unanswered-count" class="ml-2 {% if current_tab == 'unanswered' %}bg-white/20{% else %}bg-gray-400 text-white{% endif %} px-2 py-1 rounded-full text-sm">{{ unanswered_count }}</span>
+                    </a>
+                    <a href="{{ url_for('qa_page', tab='answered', page=1) }}" 
+                        class="flex-1 px-4 py-3 rounded-xl font-medium transition-all duration-200 {% if current_tab == 'answered' %}bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md{% else %}bg-gray-200 text-gray-600 hover:bg-gray-300{% endif %}">
+                        <span class="text-lg">✅</span>
+                        <span class="ml-2">已回答</span>
+                        <span id="answered-count" class="ml-2 {% if current_tab == 'answered' %}bg-white/20{% else %}bg-gray-400 text-white{% endif %} px-2 py-1 rounded-full text-sm">{{ answered_count }}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Q&Aリスト -->
+        <div class="space-y-6 max-w-2xl mx-auto">
+            {% if current_tab == 'unanswered' %}
+            <div class="text-center mb-6">
+                <h3 class="text-2xl font-bold text-red-600 flex items-center justify-center space-x-2">
+                    <span>⏳</span>
+                    <span>未回答の質問</span>
+                </h3>
+                <div class="mt-2 w-16 h-1 bg-gradient-to-r from-red-500 to-red-600 mx-auto rounded-full"></div>
+            </div>
+            {% else %}
+            <div class="text-center mb-6">
+                <h3 class="text-2xl font-bold text-green-600 flex items-center justify-center space-x-2">
+                    <span>✅</span>
+                    <span>已回答の質問</span>
+                </h3>
+                <div class="mt-2 w-16 h-1 bg-gradient-to-r from-green-500 to-green-600 mx-auto rounded-full"></div>
+            </div>
+            {% endif %}
+            
+            <div id="qa-list">
+                {% for qa in qas %}
+                <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6 border-l-4 {% if current_tab == 'unanswered' %}border-red-500{% else %}border-green-500{% endif %}" data-qa-id="{{ qa.qa_id }}">
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">👤</span>
+                                <span class="font-medium text-kawaii-dark">{{ qa.user.name }}</span>
+                                {% if current_tab == 'unanswered' %}
+                                <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">未回答</span>
+                                {% else %}
+                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">已回答</span>
+                                {% endif %}
+                                {% if qa.user_id == session.user_id %}
+                                <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">自分の質問</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex space-x-2">
+                                {% if current_tab == 'unanswered' and session.role == 'admin' %}
+                                <button 
+                                    onclick="showReplyForm({{ qa.qa_id }})"
+                                    class="px-3 py-1.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-1"
+                                >
+                                    <span class="text-sm">💬</span>
+                                    <span>回答</span>
+                                </button>
+                                {% endif %}
+                                {% if session.role == 'admin' or qa.user_id == session.user_id %}
+                                <button 
+                                    onclick="deleteQA({{ qa.qa_id }})"
+                                    class="px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-1"
+                                >
+                                    <span class="text-sm">🗑️</span>
+                                    <span>削除</span>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <p class="text-lg text-kawaii-dark leading-relaxed">{{ qa.question }}</p>
+                        <div class="mt-2 text-sm text-kawaii-dark/60">
+                            {{ qa.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </div>
+                    </div>
+
+                    <!-- 管理者用の回答フォーム（未回答の場合のみ） -->
+                    {% if current_tab == 'unanswered' and session.role == 'admin' %}
+                    <div id="reply-form-{{ qa.qa_id }}" class="hidden mb-4 p-4 bg-kawaii-pink/10 rounded-xl border border-kawaii-pink/20">
+                        <h4 class="text-lg font-medium text-kawaii-dark mb-3">回答を入力してください</h4>
+                        <textarea 
+                            id="answer-input-{{ qa.qa_id }}"
+                            placeholder="回答を入力してください"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 mb-3 h-24"
+                        ></textarea>
+                        <div class="flex space-x-3">
+                            <button 
+                                onclick="postAnswer({{ qa.qa_id }})"
+                                class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2"
+                            >
+                                <span class="text-sm">✨</span>
+                                <span>回答を投稿</span>
+                            </button>
+                            <button 
+                                onclick="hideReplyForm({{ qa.qa_id }})"
+                                class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200"
+                            >
+                                キャンセル
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 已回答の場合の回答表示 -->
+                    {% if current_tab == 'answered' and qa.answer %}
+                    <div class="ml-6 pl-4 border-l-4 border-kawaii-pink/30" id="answer-display-{{ qa.qa_id }}">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">👨‍🏫</span>
+                                <span class="font-medium text-kawaii-dark">管理者回答</span>
+                            </div>
+                            {% if session.role == 'admin' %}
+                            <button 
+                                onclick="editAnswer({{ qa.qa_id }})"
+                                class="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-1"
+                            >
+                                <span class="text-xs">✏️</span>
+                                <span>編集</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <p class="text-lg text-kawaii-dark leading-relaxed" id="answer-text-{{ qa.qa_id }}">{{ qa.answer }}</p>
+                        <div class="mt-2 text-sm text-kawaii-dark/60">
+                            {{ qa.answered_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </div>
+                    </div>
+
+                    <!-- 管理者用の回答編集フォーム（初期状態では非表示） -->
+                    {% if session.role == 'admin' %}
+                    <div id="edit-form-{{ qa.qa_id }}" class="hidden ml-6 pl-4 mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <h4 class="text-lg font-medium text-kawaii-dark mb-3">回答を編集してください</h4>
+                        <textarea 
+                            id="edit-answer-input-{{ qa.qa_id }}"
+                            placeholder="回答を入力してください"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 mb-3 h-24"
+                        >{{ qa.answer }}</textarea>
+                        <div class="flex space-x-3">
+                            <button 
+                                onclick="updateAnswer({{ qa.qa_id }})"
+                                class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2"
+                            >
+                                <span class="text-sm">💾</span>
+                                <span>更新</span>
+                            </button>
+                            <button 
+                                onclick="cancelEdit({{ qa.qa_id }})"
+                                class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200"
+                            >
+                                キャンセル
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ページネーション -->
+        {% if pagination.pages > 1 %}
+        <div class="max-w-2xl mx-auto mt-8">
+            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-4">
+                <div class="flex items-center justify-between">
+                    <!-- 前のページ -->
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('qa_page', tab=current_tab, page=pagination.prev_num) }}" 
+                       class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2">
+                        <span>←</span>
+                        <span>前のページ</span>
+                    </a>
+                    {% else %}
+                    <div class="px-4 py-2 bg-gray-300 text-gray-500 font-medium rounded-lg cursor-not-allowed">
+                        <span>←</span>
+                        <span>前のページ</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- ページ番号 -->
+                    <div class="flex space-x-2">
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != pagination.page %}
+                                <a href="{{ url_for('qa_page', tab=current_tab, page=page_num) }}" 
+                                   class="px-3 py-2 bg-gray-200 text-gray-600 font-medium rounded-lg hover:bg-gray-300 transition duration-200">
+                                    {{ page_num }}
+                                </a>
+                                {% else %}
+                                <span class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md">
+                                    {{ page_num }}
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="px-3 py-2 text-gray-400">...</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- 次のページ -->
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('qa_page', tab=current_tab, page=pagination.next_num) }}" 
+                       class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2">
+                        <span>次のページ</span>
+                        <span>→</span>
+                    </a>
+                    {% else %}
+                    <div class="px-4 py-2 bg-gray-300 text-gray-500 font-medium rounded-lg cursor-not-allowed">
+                        <span>次のページ</span>
+                        <span>→</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- ページ情報 -->
+                <div class="mt-3 text-center text-sm text-kawaii-dark/60">
+                    {{ pagination.page }} / {{ pagination.pages }} ページ 
+                    (全 {{ pagination.total }} 件の{% if current_tab == 'unanswered' %}未回答{% else %}已回答{% endif %}Q&A)
+                </div>
             </div>
         </div>
         {% endif %}
-
-        <div class="space-y-6 max-w-2xl mx-auto" id="qa-list">
-            {% for qa in qas %}
-            <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" data-qa-id="{{ qa.qa_id }}">
-                <div class="mb-4">
-                    <div class="flex items-center space-x-2 mb-2">
-                        <span class="text-lg">👤</span>
-                        <span class="font-medium text-kawaii-dark">{{ qa.user.name }}</span>
-                    </div>
-                    <p class="text-lg text-kawaii-dark leading-relaxed">{{ qa.question }}</p>
-                    <div class="mt-2 text-sm text-kawaii-dark/60">
-                        {{ qa.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </div>
-                </div>
-                {% if qa.answer %}
-                <div class="ml-6 pl-4 border-l-4 border-kawaii-pink/30">
-                    <div class="flex items-center space-x-2 mb-2">
-                        <span class="text-lg">👨‍🏫</span>
-                        <span class="font-medium text-kawaii-dark">管理者回答</span>
-                    </div>
-                    <p class="text-lg text-kawaii-dark leading-relaxed">{{ qa.answer }}</p>
-                    <div class="mt-2 text-sm text-kawaii-dark/60">
-                        {{ qa.answered_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
     </div>
 </div>
 
@@ -185,65 +358,188 @@
         }
     }
 
-    function postAnswer() {
-        const qaSelect = document.getElementById('qa-select');
-        const input = document.getElementById('answer-input');
-        if (qaSelect.value && input.value.trim()) {
+    // 管理者用の回答フォーム表示
+    function showReplyForm(qaId) {
+        const form = document.getElementById(`reply-form-${qaId}`);
+        if (form) {
+            form.classList.remove('hidden');
+            form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    // 管理者用の回答フォーム非表示
+    function hideReplyForm(qaId) {
+        const form = document.getElementById(`reply-form-${qaId}`);
+        if (form) {
+            form.classList.add('hidden');
+        }
+    }
+
+    // 管理者用の回答投稿
+    function postAnswer(qaId) {
+        const input = document.getElementById(`answer-input-${qaId}`);
+        if (input && input.value.trim()) {
             socket.emit('post_answer', {
-                qa_id: parseInt(qaSelect.value),
+                qa_id: qaId,
                 answer: input.value
             });
             input.value = '';
-            qaSelect.remove(qaSelect.selectedIndex);
+            hideReplyForm(qaId);
+        }
+    }
+
+    // 管理者用の回答編集
+    function editAnswer(qaId) {
+        const editForm = document.getElementById(`edit-form-${qaId}`);
+        const answerDisplay = document.getElementById(`answer-display-${qaId}`);
+        
+        if (editForm && answerDisplay) {
+            editForm.classList.remove('hidden');
+            answerDisplay.classList.add('hidden');
+            editForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    // 管理者用の回答編集キャンセル
+    function cancelEdit(qaId) {
+        const editForm = document.getElementById(`edit-form-${qaId}`);
+        const answerDisplay = document.getElementById(`answer-display-${qaId}`);
+        
+        if (editForm && answerDisplay) {
+            editForm.classList.add('hidden');
+            answerDisplay.classList.remove('hidden');
+        }
+    }
+
+    // 管理者用の回答更新
+    function updateAnswer(qaId) {
+        const input = document.getElementById(`edit-answer-input-${qaId}`);
+        if (input && input.value.trim()) {
+            socket.emit('update_answer', {
+                qa_id: qaId,
+                answer: input.value
+            });
+        }
+    }
+
+    // Q&A削除（管理者または自分の質問のみ）
+    function deleteQA(qaId) {
+        if (confirm('このQ&Aを削除してもよろしいですか？')) {
+            socket.emit('delete_qa', {qa_id: qaId});
+        }
+    }
+
+    // カウント更新関数
+    function updateCounts(unansweredCount, answeredCount) {
+        const unansweredCountElement = document.getElementById('unanswered-count');
+        const answeredCountElement = document.getElementById('answered-count');
+        
+        if (unansweredCountElement) {
+            unansweredCountElement.textContent = unansweredCount;
+        }
+        if (answeredCountElement) {
+            answeredCountElement.textContent = answeredCount;
         }
     }
 
     socket.on('new_question', function(data) {
-        const qaList = document.getElementById('qa-list');
-        const qaItem = document.createElement('div');
-        qaItem.className = 'bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6';
-        qaItem.dataset.qaId = data.qa_id;
-        qaItem.innerHTML = `
-            <div class="mb-4">
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="text-lg">👤</span>
-                    <span class="font-medium text-kawaii-dark">${data.user}</span>
+        // 現在のタブが未回答の場合のみ、新しい質問を追加
+        const currentTab = '{{ current_tab }}';
+        if (currentTab === 'unanswered') {
+            const qaList = document.getElementById('qa-list');
+            const qaItem = document.createElement('div');
+            qaItem.className = 'bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6 border-l-4 border-red-500';
+            qaItem.dataset.qaId = data.qa_id;
+            
+            let adminButtons = '';
+            let userButtons = '';
+            
+            if (data.is_admin) {
+                adminButtons = `
+                    <button 
+                        onclick="showReplyForm(${data.qa_id})"
+                        class="px-3 py-1.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-1"
+                    >
+                        <span class="text-sm">💬</span>
+                        <span>回答</span>
+                    </button>
+                `;
+            }
+            
+            // 管理者または自分の質問の場合、削除ボタンを表示
+            if (data.is_admin || data.is_own_question) {
+                userButtons = `
+                    <button 
+                        onclick="deleteQA(${data.qa_id})"
+                        class="px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-1"
+                    >
+                        <span class="text-sm">🗑️</span>
+                        <span>削除</span>
+                    </button>
+                `;
+            }
+            
+            let ownQuestionBadge = '';
+            if (data.is_own_question) {
+                ownQuestionBadge = '<span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">自分の質問</span>';
+            }
+            
+            qaItem.innerHTML = `
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-lg">👤</span>
+                            <span class="font-medium text-kawaii-dark">${data.user}</span>
+                            <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">未回答</span>
+                            ${ownQuestionBadge}
+                        </div>
+                        <div class="flex space-x-2">
+                            ${adminButtons}
+                            ${userButtons}
+                        </div>
+                    </div>
+                    <p class="text-lg text-kawaii-dark leading-relaxed">${data.question}</p>
+                    <div class="mt-2 text-sm text-kawaii-dark/60">
+                        ${data.created_at}
+                    </div>
                 </div>
-                <p class="text-lg text-kawaii-dark leading-relaxed">${data.question}</p>
-                <div class="mt-2 text-sm text-kawaii-dark/60">
-                    ${data.created_at}
-                </div>
-            </div>
-        `;
-        qaList.insertBefore(qaItem, qaList.firstChild);
-
-        // 管理者用の選択肢を追加
-        const qaSelect = document.getElementById('qa-select');
-        if (qaSelect) {
-            const option = new Option(data.question, data.qa_id);
-            qaSelect.add(option);
+            `;
+            qaList.insertBefore(qaItem, qaList.firstChild);
         }
+        
+        // カウントを更新
+        updateCounts(data.unanswered_count, data.answered_count);
     });
 
     socket.on('new_answer', function(data) {
-        const qaItem = document.querySelector(`[data-qa-id="${data.qa_id}"]`);
-        if (qaItem) {
-            const answerDiv = document.createElement('div');
-            answerDiv.className = 'ml-6 pl-4 border-l-4 border-kawaii-pink/30';
-            answerDiv.innerHTML = `
-                <div class="flex items-center space-x-2 mb-2">
-                    <span class="text-lg">👨‍🏫</span>
-                    <span class="font-medium text-kawaii-dark">管理者回答</span>
-                </div>
-                <p class="text-lg text-kawaii-dark leading-relaxed">${data.answer}</p>
-                <div class="mt-2 text-sm text-kawaii-dark/60">
-                    ${data.answered_at}
-                </div>
-            `;
-            qaItem.appendChild(answerDiv);
+        // 回答が追加された場合、ページをリロードして正しいタブに移動
+        window.location.href = "{{ url_for('qa_page', tab='answered', page=1) }}";
+    });
+
+    socket.on('answer_updated', function(data) {
+        const answerText = document.getElementById(`answer-text-${data.qa_id}`);
+        const editForm = document.getElementById(`edit-form-${data.qa_id}`);
+        const answerDisplay = document.getElementById(`answer-display-${data.qa_id}`);
+        
+        if (answerText) {
+            answerText.textContent = data.answer;
+        }
+        
+        if (editForm && answerDisplay) {
+            editForm.classList.add('hidden');
+            answerDisplay.classList.remove('hidden');
         }
     });
-</script>
 
+    socket.on('qa_deleted', function(data) {
+        const qaItem = document.querySelector(`[data-qa-id="${data.qa_id}"]`);
+        if (qaItem) {
+            qaItem.remove();
+        }
+        
+        // カウントを更新
+        updateCounts(data.unanswered_count, data.answered_count);
+    });
+</script>
 
 {% endblock %}
