@@ -422,7 +422,7 @@ def admin_post_management():
     # GETリクエスト（投稿一覧の表示）
     # URLパラメータから各種フィルタとページ番号を取得
     scope_filter = request.args.get('scope')
-    user_filter = request.args.get('user_id', type=int)
+    user_name_filter = request.args.get('user_name')  # ユーザー名を文字列として受け取る
     page = request.args.get('page', 1, type=int)
 
     # クエリのベースを作成
@@ -432,9 +432,10 @@ def admin_post_management():
     if scope_filter:
         query = query.filter_by(scope=scope_filter)
     
-    # ユーザーで絞り込み
-    if user_filter:
-        query = query.filter_by(user_id=user_filter)
+    # ユーザー名（部分一致）で絞り込み
+    if user_name_filter:
+        # Userモデルとjoinし、名前で検索をかける (likeを使用)
+        query = query.join(Post.author).filter(User.name.like(f"%{user_name_filter}%"))
 
     # ページネーションを適用して投稿を取得
     posts_pagination = query.order_by(Post.created_at.desc()).paginate(
@@ -442,15 +443,13 @@ def admin_post_management():
     )
     
     schools = School.query.all()
-    users = User.query.order_by(User.name).all()
     
     return render_template("admin_post_management.html", 
                            posts=posts_pagination.items,
                            pagination=posts_pagination,
                            schools=schools,
-                           users=users,
                            current_scope=scope_filter,
-                           current_user_id=user_filter)
+                           current_user_name=user_name_filter)
 
 
 @app.route("/logout")
@@ -788,6 +787,19 @@ def handle_delete_qa(data):
         'answered_count': answered_count
     }, broadcast=True)
 
+@app.route("/api/users/search")
+def api_user_search():
+    """ユーザー名検索のためのAPIエンドポイント"""
+    query = request.args.get('q', '') # 'q'というパラメータで検索語を受け取る
+    if not query:
+        return []
+
+    # 検索語に部分一致するユーザーを検索 (最大10件)
+    users = User.query.filter(User.name.like(f"%{query}%")).limit(10).all()
+    
+    # 結果をJSON形式で返す
+    results = [{"id": user.user_id, "name": user.name, "student_id": user.student_id} for user in users]
+    return results
 @app.route("/comment/delete/<int:comment_id>", methods=["POST"])
 def user_delete_comment(comment_id):
     # ユーザーがログインしているか確認

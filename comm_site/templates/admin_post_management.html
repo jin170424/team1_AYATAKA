@@ -2,7 +2,6 @@
 
 {% block content %}
 <div class="min-h-screen">
-    <!-- ハンバーガーメニュー -->
     <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
         id="sideMenu">
         <div class="p-6 space-y-6">
@@ -61,35 +60,77 @@
                         {% endfor %}
                     </select>
                 </div>
+                
                 <div>
-                    <label for="user_select" class="block text-sm font-medium text-gray-700 mb-2">ユーザーで絞り込み:</label>
-                    <select id="user_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">すべてのユーザー</option>
-                        {% for user in users %}
-                            <option value="{{ user.user_id }}" {% if current_user_id == user.user_id %}selected{% endif %}>{{ user.name }} ({{ user.student_id }})</option>
-                        {% endfor %}
-                    </select>
+                    <label for="user_name_search" class="block text-sm font-medium text-gray-700 mb-2">ユーザー名で検索:</label>
+                    <form id="filterForm" action="{{ url_for('admin_post_management') }}" method="GET" class="relative">
+                        <div class="flex">
+                            <input type="text" id="user_name_search" placeholder="名前を入力して候補から選択..." class="flex-grow px-4 py-2 border-t border-b border-l border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10" value="{{ current_user_name or '' }}" autocomplete="off">
+                            <input type="hidden" name="user_name" id="selected_user_name" value="{{ current_user_name or '' }}">
+                            <input type="hidden" name="scope" id="selected_scope" value="{{ current_scope or '' }}">
+                            <button type="submit" class="px-3 py-2 bg-blue-600 text-white font-medium rounded-r-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 relative -ml-px">
+                                🔎
+                            </button>
+                        </div>
+                        <div id="suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg hidden"></div>
+                    </form>
                 </div>
             </div>
             
             <script>
-                function applyFilters() {
-                    const scope = document.getElementById('board_select').value;
-                    const userId = document.getElementById('user_select').value;
-                    
-                    const params = new URLSearchParams();
-                    if (scope) {
-                        params.append('scope', scope);
-                    }
-                    if (userId) {
-                        params.append('user_id', userId);
-                    }
-                    
-                    window.location.href = "{{ url_for('admin_post_management') }}" + '?' + params.toString();
-                }
+                // スコープ選択が変更されたら、裏側のhiddenインプットに値を設定しフォームを送信
+                document.getElementById('board_select').addEventListener('change', function() {
+                    document.getElementById('selected_scope').value = this.value;
+                    document.getElementById('filterForm').submit();
+                });
 
-                document.getElementById('board_select').addEventListener('change', applyFilters);
-                document.getElementById('user_select').addEventListener('change', applyFilters);
+                const searchInput = document.getElementById('user_name_search');
+                const suggestionsContainer = document.getElementById('suggestions');
+                const selectedUserNameInput = document.getElementById('selected_user_name');
+
+                // 検索欄に入力があったときの処理
+                searchInput.addEventListener('input', async function() {
+                    const query = this.value;
+                    selectedUserNameInput.value = query; // ユーザーが直接入力した値を保持
+
+                    if (query.length < 1) {
+                        suggestionsContainer.innerHTML = '';
+                        suggestionsContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    // APIに問い合わせて候補を取得
+                    const response = await fetch(`{{ url_for('api_user_search') }}?q=${query}`);
+                    const users = await response.json();
+
+                    suggestionsContainer.innerHTML = '';
+                    if (users.length > 0) {
+                        users.forEach(user => {
+                            const item = document.createElement('div');
+                            item.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                            // 名前と学籍番号を両方表示するように変更
+                            item.textContent = `${user.name} (${user.student_id})`;
+                            // 候補がクリックされたときの処理
+                            item.addEventListener('click', function() {
+                                searchInput.value = user.name; // 見えている検索ボックスに名前を設定
+                                selectedUserNameInput.value = user.name; // 送信用のhiddenインプットに名前を設定
+                                suggestionsContainer.classList.add('hidden');
+                                document.getElementById('filterForm').submit(); // 選択後すぐに検索を実行
+                            });
+                            suggestionsContainer.appendChild(item);
+                        });
+                        suggestionsContainer.classList.remove('hidden');
+                    } else {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                });
+                
+                // 検索欄の外側をクリックしたら候補を閉じる
+                document.addEventListener('click', function(e) {
+                    if (!searchInput.contains(e.target)) {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                });
             </script>
             
             <div class="space-y-4">
@@ -133,7 +174,7 @@
             {% if pagination %}
             <div class="mt-8 flex justify-center items-center space-x-2">
                 {% if pagination.has_prev %}
-                    <a href="{{ url_for('admin_post_management', page=pagination.prev_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <a href="{{ url_for('admin_post_management', page=pagination.prev_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                         &laquo; 前へ
                     </a>
                 {% else %}
@@ -147,7 +188,7 @@
                         {% if pagination.page == page_num %}
                             <span class="px-4 py-2 bg-blue-500 border border-blue-500 rounded-md text-sm font-medium text-white">{{ page_num }}</span>
                         {% else %}
-                            <a href="{{ url_for('admin_post_management', page=page_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            <a href="{{ url_for('admin_post_management', page=page_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                                 {{ page_num }}
                             </a>
                         {% endif %}
@@ -157,7 +198,7 @@
                 {% endfor %}
                 
                 {% if pagination.has_next %}
-                    <a href="{{ url_for('admin_post_management', page=pagination.next_num, scope=current_scope, user_id=current_user_id) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <a href="{{ url_for('admin_post_management', page=pagination.next_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                         次へ &raquo;
                     </a>
                 {% else %}
