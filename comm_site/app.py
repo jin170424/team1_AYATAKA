@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -240,23 +240,16 @@ def submit_post():
 @app.route("/post/delete/<int:post_id>", methods=["POST"])
 def delete_post(post_id):
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
 
     post = Post.query.get(post_id)
 
     if not post:
-        flash("投稿が見つかりませんでした。", "error")
-        # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
-        if "admin" in request.referrer:
-            return redirect(url_for("admin_post_management"))
-        return redirect(url_for("home"))
+        return jsonify({"success": False, "message": "投稿が見つかりませんでした"}), 404
 
     # 削除権限の確認：本人または管理者
     if post.user_id != session["user_id"] and session["role"] != "admin":
-        flash("削除権限がありません。", "error")
-        if "admin" in request.referrer:
-            return redirect(url_for("admin_post_management"))
-        return redirect(url_for("home"))
+        return jsonify({"success": False, "message": "削除権限がありません"}), 403
 
     # 関連コメントを削除
     Comment.query.filter_by(post_id=post.post_id).delete()
@@ -264,32 +257,20 @@ def delete_post(post_id):
     db.session.delete(post)
     db.session.commit()
 
-
-    # 呼び出し元がadmin_post_management.htmlであれば、そこに戻るように変更
-    if "admin" in request.referrer:
-        return redirect(url_for("admin_post_management"))
-    # スコープに応じてリダイレクト
-    if post.scope == "public":
-        return redirect(url_for("school_wide_board"))
-    elif post.scope.startswith("school"):
-        return redirect(url_for("school_specific_board"))
-    else:
-        return redirect(url_for("home"))
+    return jsonify({"success": True, "message": "投稿を削除しました"})
 
 @app.route("/comment/<int:post_id>", methods=["POST"])
 def add_comment(post_id):
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
 
     content = request.form.get("comment_content")
     if not content:
-        flash("コメント内容を入力してください。", "error")
-        return redirect(request.referrer)
+        return jsonify({"success": False, "message": "コメント内容を入力してください"}), 400
 
     post = Post.query.get(post_id)
     if not post:
-        flash("投稿が見つかりません。", "error")
-        return redirect(url_for("home"))
+        return jsonify({"success": False, "message": "投稿が見つかりません"}), 404
 
     comment = Comment(
         post_id=post_id,
@@ -299,7 +280,19 @@ def add_comment(post_id):
     db.session.add(comment)
     db.session.commit()
 
-    return redirect(request.referrer)
+    # 获取用户信息
+    user = User.query.get(session["user_id"])
+    
+    return jsonify({
+        "success": True, 
+        "message": "コメントを追加しました",
+        "comment": {
+            "comment_id": comment.comment_id,
+            "content": comment.content,
+            "user_name": user.name if user else "不明",
+            "created_at": comment.created_at.strftime('%Y/%m/%d %H:%M')
+        }
+    })
 
 
 #プロフィール確認画面
@@ -799,55 +792,44 @@ def handle_delete_qa(data):
 def user_delete_comment(comment_id):
     # ユーザーがログインしているか確認
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
 
     comment = Comment.query.get(comment_id)
     if not comment:
-        flash("コメントが見つかりませんでした。", "error")
-        return redirect(request.referrer or url_for("home"))
+        return jsonify({"success": False, "message": "コメントが見つかりませんでした"}), 404
 
     # 削除権限の確認：本人または管理者
     if comment.user_id != session["user_id"] and session["role"] != "admin":
-        flash("削除権限がありません。", "error")
-        return redirect(request.referrer or url_for("home"))
+        return jsonify({"success": False, "message": "削除権限がありません"}), 403
 
     db.session.delete(comment)
     db.session.commit()
-    flash("コメントを削除しました。", "success")
     
-    # 元のページに戻る
-    return redirect(request.referrer or url_for("home"))
+    return jsonify({"success": True, "message": "コメントを削除しました"})
 
 # 新しい編集评论路由
-@app.route("/comment/edit/<int:comment_id>", methods=["GET", "POST"])
+@app.route("/comment/edit/<int:comment_id>", methods=["POST"])
 def edit_comment(comment_id):
     # ユーザーがログインしているか確認
     if "user_id" not in session:
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
 
     comment = Comment.query.get(comment_id)
     if not comment:
-        flash("コメントが見つかりませんでした。", "error")
-        return redirect(request.referrer or url_for("home"))
+        return jsonify({"success": False, "message": "コメントが見つかりませんでした"}), 404
 
     # 編集権限の確認：本人または管理者
     if comment.user_id != session["user_id"] and session["role"] != "admin":
-        flash("編集権限がありません。", "error")
-        return redirect(request.referrer or url_for("home"))
+        return jsonify({"success": False, "message": "編集権限がありません"}), 403
 
-    if request.method == "POST":
-        new_content = request.form.get("content")
-        if not new_content:
-            flash("コメント内容を入力してください。", "error")
-            return redirect(request.referrer or url_for("home"))
-        
-        comment.content = new_content
-        db.session.commit()
-        flash("コメントを更新しました。", "success")
-        return redirect(request.referrer or url_for("home"))
-
-    # GETリクエストの場合、編集フォームを表示
-    return render_template("home.html", comment=comment)
+    new_content = request.form.get("content")
+    if not new_content:
+        return jsonify({"success": False, "message": "コメント内容を入力してください"}), 400
+    
+    comment.content = new_content
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "コメントを更新しました", "content": new_content})
 
 if __name__ == "__main__":
     with app.app_context():

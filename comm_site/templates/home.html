@@ -102,14 +102,11 @@
 
                 {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                 <div class="mt-2">
-                    <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST"
-                        onsubmit="return confirm('本当に削除しますか？')">
-                        <button type="submit"
-                            class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
-                            <span class="text-sm">🗑️</span>
-                            <span class="text-sm font-medium">削除</span>
-                        </button>
-                    </form>
+                    <button onclick="deletePost({{ post.post_id }})"
+                        class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
+                        <span class="text-sm">🗑️</span>
+                        <span class="text-sm font-medium">削除</span>
+                    </button>
                 </div>
                 {% endif %}
 
@@ -119,7 +116,7 @@
                         class="w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200">
                         <span class="text-sm text-kawaii-dark flex items-center space-x-2">
                             <span class="text-kawaii-purple">💬</span>
-                            <span>{{ post.comments|length }}件のコメント</span>
+                            <span id="comment-count-{{ post.post_id }}">{{ post.comments|length }}件のコメント</span>
                         </span>
                         <svg id="arrow-{{ post.post_id }}"
                             class="w-5 h-5 text-kawaii-dark/40 transform transition-transform duration-200" fill="none"
@@ -143,13 +140,10 @@
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         ✏️ 編集
                                     </button>
-                                    <form action="{{ url_for('user_delete_comment', comment_id=comment.comment_id) }}" method="POST" 
-                                        onsubmit="return confirm('本当に削除しますか？')" class="inline">
-                                        <button type="submit" 
-                                            class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
-                                            🗑️ 削除
-                                        </button>
-                                    </form>
+                                    <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})" 
+                                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                                        🗑️ 削除
+                                    </button>
                                 </div>
                                 {% endif %}
                             </div>
@@ -158,21 +152,19 @@
                             
                             <!-- 編集フォーム（初期状態では非表示） -->
                             <div id="edit-form-{{ comment.comment_id }}" class="hidden mt-2">
-                                <form action="{{ url_for('edit_comment', comment_id=comment.comment_id) }}" method="POST">
-                                    <div class="flex space-x-2">
-                                        <textarea name="content" rows="2" required
-                                            class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
-                                            id="edit-textarea-{{ comment.comment_id }}">{{ comment.content }}</textarea>
-                                        <button type="submit" 
-                                            class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                                            保存
-                                        </button>
-                                        <button type="button" onclick="cancelEdit({{ comment.comment_id }})"
-                                            class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                                            キャンセル
-                                        </button>
-                                    </div>
-                                </form>
+                                <div class="flex space-x-2">
+                                    <textarea rows="2" required
+                                        class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
+                                        id="edit-textarea-{{ comment.comment_id }}">{{ comment.content }}</textarea>
+                                    <button type="button" onclick="saveCommentEdit({{ comment.comment_id }})"
+                                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                        保存
+                                    </button>
+                                    <button type="button" onclick="cancelEdit({{ comment.comment_id }})"
+                                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                        キャンセル
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
@@ -180,16 +172,16 @@
                     {% endif %}
 
                     {% if current_scope != 'my_posts' %}
-                    <form class="mt-2" action="{{ url_for('add_comment', post_id=post.post_id) }}" method="POST">
+                    <div class="mt-2">
                         <div class="flex space-x-2">
-                            <textarea name="comment_content" rows="1" placeholder="コメントを書く" required
+                            <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く" required
                                 class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
-                            <button type="submit"
+                            <button type="button" onclick="addComment({{ post.post_id }})"
                                 class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 💭
                             </button>
                         </div>
-                    </form>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -258,6 +250,71 @@
         }
     }
 
+    // 投稿削除機能
+    function deletePost(postId) {
+        if (!confirm('本当に削除しますか？')) {
+            return;
+        }
+
+        fetch(`/post/delete/${postId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 投稿要素を削除
+                const postElement = document.getElementById(`post-${postId}`);
+                if (postElement) {
+                    postElement.remove();
+                }
+                showMessage(data.message, 'success');
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('削除中にエラーが発生しました', 'error');
+        });
+    }
+
+    // コメント削除機能
+    function deleteComment(commentId, postId) {
+        if (!confirm('本当に削除しますか？')) {
+            return;
+        }
+
+        fetch(`/comment/delete/${commentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // コメント要素を削除
+                const commentElement = document.getElementById(`comment-${commentId}`);
+                if (commentElement) {
+                    commentElement.remove();
+                }
+                
+                // コメント数を更新
+                updateCommentCount(postId);
+                showMessage(data.message, 'success');
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('削除中にエラーが発生しました', 'error');
+        });
+    }
+
     // コメント編集機能
     function editComment(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
@@ -280,6 +337,236 @@
         editForm.classList.add('hidden');
         // コメント内容を表示
         commentContent.style.display = 'inline';
+    }
+
+    // コメント保存機能
+    function saveCommentEdit(commentId) {
+        const editTextarea = document.getElementById('edit-textarea-' + commentId);
+        const newContent = editTextarea.value.trim();
+        
+        if (!newContent) {
+            showMessage('コメント内容を入力してください', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('content', newContent);
+
+        fetch(`/comment/edit/${commentId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // コメント内容を更新
+                const commentContent = document.getElementById('comment-content-' + commentId);
+                commentContent.textContent = data.content;
+                
+                // 編集フォームを非表示
+                cancelEdit(commentId);
+                showMessage(data.message, 'success');
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('更新中にエラーが発生しました', 'error');
+        });
+    }
+
+    // コメント追加機能
+    function addComment(postId) {
+        const textarea = document.getElementById(`comment-textarea-${postId}`);
+        const content = textarea.value.trim();
+        
+        if (!content) {
+            showMessage('コメント内容を入力してください', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('comment_content', content);
+
+        fetch(`/comment/${postId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // テキストエリアをクリア
+                textarea.value = '';
+                
+                // 新しいコメントを追加
+                addCommentToDOM(postId, data.comment);
+                
+                // コメント数を更新
+                updateCommentCount(postId);
+                
+                showMessage(data.message, 'success');
+            } else {
+                showMessage(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('コメント追加中にエラーが発生しました', 'error');
+        });
+    }
+
+// 新しいコメントをDOMに追加
+    function addCommentToDOM(postId, commentData) {
+        let commentsContainer = document.getElementById(`comments-${postId}`);
+        
+        if (!commentsContainer) {
+            // コメントセクションが存在しない場合は作成
+            createCommentsSection(postId);
+            // ★修正点: コメントセクションを新規作成した後に、再度要素を取得する
+            commentsContainer = document.getElementById(`comments-${postId}`);
+        }
+        
+        // 新しいコメント要素を作成
+        const commentElement = document.createElement('div');
+        commentElement.className = 'flex flex-col';
+        commentElement.id = `comment-${commentData.comment_id}`;
+        
+        commentElement.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div class="flex space-x-2 flex-grow">
+                    <span class="text-kawaii-purple font-medium">${commentData.user_name}</span>
+                    <span class="text-kawaii-dark" id="comment-content-${commentData.comment_id}">${commentData.content}</span>
+                </div>
+                <div class="flex space-x-2 ml-2">
+                    <button onclick="editComment(${commentData.comment_id})" 
+                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                        ✏️ 編集
+                    </button>
+                    <button onclick="deleteComment(${commentData.comment_id}, ${postId})" 
+                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                        🗑️ 削除
+                    </button>
+                </div>
+            </div>
+            <div class="text-xs text-kawaii-dark/50">${commentData.created_at}</div>
+            
+            <div id="edit-form-${commentData.comment_id}" class="hidden mt-2">
+                <div class="flex space-x-2">
+                    <textarea rows="2" required
+                        class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
+                        id="edit-textarea-${commentData.comment_id}">${commentData.content}</textarea>
+                    <button type="button" onclick="saveCommentEdit(${commentData.comment_id})"
+                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                        保存
+                    </button>
+                    <button type="button" onclick="cancelEdit(${commentData.comment_id})"
+                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // コメントを追加
+        commentsContainer.appendChild(commentElement);
+        
+        // トグルボタンを表示（コメントが存在する場合）
+        const toggleButton = commentsContainer.previousElementSibling;
+        if (toggleButton) {
+            toggleButton.style.display = 'flex';
+        }
+        
+        // 新しくコメントを追加した場合は自動的に展開表示
+        // ただし、既にコメントセクションが存在する場合は現在の状態を維持
+        if (commentsContainer.classList.contains('hidden')) {
+            // コメントセクションが隠れている場合は展開
+            commentsContainer.classList.remove('hidden');
+            const arrowIcon = document.getElementById(`arrow-${postId}`);
+            if (arrowIcon) {
+                arrowIcon.classList.add('rotate-180');
+            }
+        }
+    }
+
+    // コメントセクションを作成（初回コメント時）
+    function createCommentsSection(postId) {
+        const postElement = document.getElementById(`post-${postId}`);
+        const commentForm = postElement.querySelector('.mt-2');
+        
+        // コメントセクションを作成
+        const commentsSection = document.createElement('div');
+        commentsSection.id = `comments-${postId}`;
+        commentsSection.className = 'mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4';
+        
+        // コメントセクションをコメントフォームの前に挿入
+        commentForm.parentNode.insertBefore(commentsSection, commentForm);
+        
+        // トグルボタンを作成
+        const toggleButton = document.createElement('button');
+        toggleButton.className = 'w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200';
+        toggleButton.onclick = () => toggleComments(`comments-${postId}`);
+        
+        toggleButton.innerHTML = `
+            <span class="text-sm text-kawaii-dark flex items-center space-x-2">
+                <span class="text-kawaii-purple">💬</span>
+                <span id="comment-count-${postId}">0件のコメント</span>
+            </span>
+            <svg id="arrow-${postId}" class="w-5 h-5 text-kawaii-dark/40 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        `;
+        
+        // トグルボタンをコメントセクションの前に挿入
+        commentsSection.parentNode.insertBefore(toggleButton, commentsSection);
+    }
+
+    // コメント数を更新
+    function updateCommentCount(postId) {
+        const commentsContainer = document.getElementById(`comments-${postId}`);
+        const commentCountElement = document.getElementById(`comment-count-${postId}`);
+        
+        if (commentsContainer && commentCountElement) {
+            const commentCount = commentsContainer.querySelectorAll('.flex.flex-col').length;
+            commentCountElement.textContent = `${commentCount}件のコメント`;
+        }
+    }
+
+    // メッセージ表示機能
+    function showMessage(message, type) {
+        // 既存のメッセージを削除
+        const existingMessage = document.querySelector('.message-toast');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        // 新しいメッセージを作成
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message-toast fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+        
+        if (type === 'success') {
+            messageDiv.classList.add('bg-green-500', 'text-white');
+        } else {
+            messageDiv.classList.add('bg-red-500', 'text-white');
+        }
+        
+        messageDiv.textContent = message;
+        document.body.appendChild(messageDiv);
+
+        // アニメーション表示
+        setTimeout(() => {
+            messageDiv.classList.remove('translate-x-full');
+        }, 100);
+
+        // 3秒後に自動削除
+        setTimeout(() => {
+            messageDiv.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 300);
+        }, 3000);
     }
 </script>
 {% endblock %}
