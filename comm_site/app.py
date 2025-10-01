@@ -843,6 +843,29 @@ def edit_comment(comment_id):
     
     return jsonify({"success": True, "message": "コメントを更新しました", "content": new_content})
 
+@app.route("/post/edit/<int:post_id>", methods=["POST"])
+def edit_post(post_id):
+    # ユーザーがログインしているか確認
+    if "user_id" not in session:
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
+
+    post = Post.query.get(post_id)
+    if not post:
+        return jsonify({"success": False, "message": "投稿が見つかりませんでした"}), 404
+
+    # 編集権限の確認：投稿者本人のみ
+    if post.user_id != session["user_id"]:
+        return jsonify({"success": False, "message": "編集権限がありません"}), 403
+
+    new_content = request.form.get("content")
+    if not new_content:
+        return jsonify({"success": False, "message": "投稿内容を入力してください"}), 400
+    
+    post.content = new_content
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "投稿を更新しました", "content": new_content})
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
