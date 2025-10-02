@@ -297,23 +297,32 @@ def add_comment(post_id):
         "comment": {
             "comment_id": comment.comment_id,
             "content": comment.content,
+            "user_id": user.user_id, ### 変更点: ユーザーIDを追加 ###
             "user_name": user.name if user else "不明",
             "created_at": comment.created_at.strftime('%Y/%m/%d %H:%M')
         }
     })
 
-#プロフィール確認画面
-@app.route("/profile")
-def profile_view():
+### 変更点: プロフィール表示ルートを修正 ###
+@app.route("/profile", defaults={'user_id': None})
+@app.route("/profile/<int:user_id>")
+def profile_view(user_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
+
+    # 表示対象のユーザーIDを決定
+    viewed_user_id = user_id if user_id is not None else session["user_id"]
     
-    user = User.query.get(session["user_id"])
-    
+    user = User.query.get(viewed_user_id)
+
     if not user:
-        return redirect(url_for("logout"))
-        
-    return render_template("profile.html", user=user)
+        flash("ユーザーが見つかりませんでした。", "error")
+        return redirect(request.referrer or url_for("home"))
+
+    # 表示しているプロフィールがログインユーザー自身のものか判定
+    is_own_profile = (viewed_user_id == session["user_id"])
+
+    return render_template("profile.html", user=user, is_own_profile=is_own_profile)
 
 # ====== 🔽 追加: プロフィール編集ルート 🔽 ======
 def allowed_file(filename):
