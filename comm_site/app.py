@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
+from sqlalchemy import func  
+from collections import defaultdict 
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -67,6 +69,21 @@ class Comment(db.Model):
     post = db.relationship("Post", backref="comments")
     user = db.relationship("User", backref="comments")
 
+# app.py のモデル定義セクションに追加
+
+class Reaction(db.Model):
+    __tablename__ = "reaction"
+    reaction_id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.post_id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    # 'like' または絵文字そのものを保存
+    reaction_type = db.Column(db.String(10), nullable=False)
+
+    post = db.relationship("Post", backref=db.backref("reactions", cascade="all, delete-orphan"))
+    user = db.relationship("User", backref="reactions")
+
+    # ユーザーは1つの投稿に同じリアクションを1度しかできないように制約を設定
+    __table_args__ = (db.UniqueConstraint('post_id', 'user_id', 'reaction_type', name='_user_post_reaction_uc'),)
 class QA(db.Model):
     __tablename__ = "qa"
     qa_id = db.Column(db.Integer, primary_key=True)
@@ -141,10 +158,49 @@ def school_wide_board():
         posts_pagination = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
+    posts = posts_pagination.items
+
+            # ▼▼▼【ここから追加】▼▼▼
+    if posts:
+        post_ids = [p.post_id for p in posts]
+        user_id = session.get("user_id")
+
+        # 1. 各投稿・各絵文字のリアクション数を一括で取得
+        reaction_counts = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type,
+            func.count(Reaction.reaction_id)
+        ).filter(Reaction.post_id.in_(post_ids)).group_by(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).all()
+        
+        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
+        reactions_by_post = defaultdict(dict)
+        for post_id, emoji, count in reaction_counts:
+            reactions_by_post[post_id][emoji] = count
+
+        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
+        user_reactions_query = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).filter(
+            Reaction.post_id.in_(post_ids),
+            Reaction.user_id == user_id
+        ).all()
+        
+        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
+        user_reactions_set = set(user_reactions_query)
+
+        # 3. 各投稿オブジェクトにリアクション情報を追加
+        for post in posts:
+            post.reaction_counts = reactions_by_post.get(post.post_id, {})
+            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
+    # ▲▲▲【ここまで追加】▲▲▲
         
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts_pagination.items,  
+                               posts=posts,  
                                pagination=posts_pagination,     
                                board_title="校舎間掲示板",
                                current_scope="public")
@@ -166,12 +222,52 @@ def school_specific_board():
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
 
+    posts = posts_pagination.items
+    
+    # ▼▼▼【ここから追加】▼▼▼
+    if posts:
+        post_ids = [p.post_id for p in posts]
+        user_id = session.get("user_id")
+
+        # 1. 各投稿・各絵文字のリアクション数を一括で取得
+        reaction_counts = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type,
+            func.count(Reaction.reaction_id)
+        ).filter(Reaction.post_id.in_(post_ids)).group_by(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).all()
+        
+        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
+        reactions_by_post = defaultdict(dict)
+        for post_id, emoji, count in reaction_counts:
+            reactions_by_post[post_id][emoji] = count
+
+        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
+        user_reactions_query = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).filter(
+            Reaction.post_id.in_(post_ids),
+            Reaction.user_id == user_id
+        ).all()
+        
+        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
+        user_reactions_set = set(user_reactions_query)
+
+        # 3. 各投稿オブジェクトにリアクション情報を追加
+        for post in posts:
+            post.reaction_counts = reactions_by_post.get(post.post_id, {})
+            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
+    # ▲▲▲【ここまで追加】▲▲▲
+
         school_info = School.query.filter_by(school_id=user_school_id).first()
         board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
 
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts_pagination.items,  
+                               posts=posts,  
                                pagination=posts_pagination,     
                                board_title=board_title,
                                current_scope=school_scope)
@@ -201,10 +297,50 @@ def notice_board():
     posts_pagination = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
+
+    posts = posts_pagination.items
+    
+    # ▼▼▼【ここから追加】▼▼▼
+    if posts:
+        post_ids = [p.post_id for p in posts]
+        user_id = session.get("user_id")
+
+        # 1. 各投稿・各絵文字のリアクション数を一括で取得
+        reaction_counts = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type,
+            func.count(Reaction.reaction_id)
+        ).filter(Reaction.post_id.in_(post_ids)).group_by(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).all()
+        
+        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
+        reactions_by_post = defaultdict(dict)
+        for post_id, emoji, count in reaction_counts:
+            reactions_by_post[post_id][emoji] = count
+
+        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
+        user_reactions_query = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).filter(
+            Reaction.post_id.in_(post_ids),
+            Reaction.user_id == user_id
+        ).all()
+        
+        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
+        user_reactions_set = set(user_reactions_query)
+
+        # 3. 各投稿オブジェクトにリアクション情報を追加
+        for post in posts:
+            post.reaction_counts = reactions_by_post.get(post.post_id, {})
+            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
+    # ▲▲▲【ここまで追加】▲▲▲
     
     return render_template("home.html", 
                            user=session["name"], 
-                           posts=posts_pagination.items, 
+                           posts=posts, 
                            pagination=posts_pagination,
                            board_title="通知用掲示板", 
                            current_scope="notice0")
@@ -368,11 +504,51 @@ def my_posts():
     posts_pagination = Post.query.filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
+
+    posts = posts_pagination.items
+    
+    # ▼▼▼【ここから追加】▼▼▼
+    if posts:
+        post_ids = [p.post_id for p in posts]
+        user_id = session.get("user_id")
+
+        # 1. 各投稿・各絵文字のリアクション数を一括で取得
+        reaction_counts = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type,
+            func.count(Reaction.reaction_id)
+        ).filter(Reaction.post_id.in_(post_ids)).group_by(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).all()
+        
+        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
+        reactions_by_post = defaultdict(dict)
+        for post_id, emoji, count in reaction_counts:
+            reactions_by_post[post_id][emoji] = count
+
+        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
+        user_reactions_query = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).filter(
+            Reaction.post_id.in_(post_ids),
+            Reaction.user_id == user_id
+        ).all()
+        
+        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
+        user_reactions_set = set(user_reactions_query)
+
+        # 3. 各投稿オブジェクトにリアクション情報を追加
+        for post in posts:
+            post.reaction_counts = reactions_by_post.get(post.post_id, {})
+            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
+    # ▲▲▲【ここまで追加】▲▲▲
     
     # home.htmlを再利用して、自分の投稿一覧を表示
     return render_template("home.html", 
                            user=session["name"], 
-                           posts=posts_pagination.items, 
+                           posts=posts, 
                            pagination=posts_pagination,
                            board_title=f"{session['name']}さんの投稿一覧", 
                            current_scope="my_posts")
@@ -786,6 +962,48 @@ def handle_delete_qa(data):
         'unanswered_count': unanswered_count,
         'answered_count': answered_count
     }, broadcast=True)
+
+# リアクション関連のAPIエンドポイント
+@app.route("/api/reaction/<int:post_id>", methods=["POST"])
+def toggle_reaction(post_id):
+    if "user_id" not in session:
+        return jsonify({"error": "ログインが必要です"}), 401
+
+    data = request.get_json()
+    emoji = data.get("emoji")
+    
+    if not emoji:
+        return jsonify({"error": "無効なリアクションです"}), 400
+
+    user_id = session["user_id"]
+    existing_reaction = Reaction.query.filter_by(
+        post_id=post_id,
+        user_id=user_id,
+        reaction_type=emoji
+    ).first()
+
+    if existing_reaction:
+        db.session.delete(existing_reaction)
+        active = False
+    else:
+        new_reaction = Reaction(
+            post_id=post_id,
+            user_id=user_id,
+            reaction_type=emoji
+        )
+        db.session.add(new_reaction)
+        active = True
+
+    db.session.commit()
+
+    # リアクション数を取得
+    count = Reaction.query.filter_by(post_id=post_id, reaction_type=emoji).count()
+    
+    return jsonify({
+        "count": count,
+        "active": active
+    })
+
 
 @app.route("/api/users/search")
 def api_user_search():

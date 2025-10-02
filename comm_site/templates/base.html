@@ -70,6 +70,51 @@
             }
         }
     </script>
+    <script>
+        // リアクション関連の関数
+        async function toggleReaction(postId, emoji) {
+            try {
+                const response = await fetch(`/api/reaction/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emoji: emoji })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateReactionCount(postId, emoji, data.count);
+                    toggleReactionButtonState(postId, emoji, data.active);
+                }
+            } catch (error) {
+                console.error('リアクションの更新に失敗しました:', error);
+            }
+        }
+
+        function showEmojiPicker(postId) {
+            const picker = document.getElementById(`emoji-picker-${postId}`);
+            picker.classList.toggle('show');
+        }
+
+        function updateReactionCount(postId, emoji, count) {
+            const countElement = document.getElementById(`reaction-count-${postId}-${emoji}`);
+            if (countElement) {
+                countElement.textContent = count;
+            }
+        }
+
+        function toggleReactionButtonState(postId, emoji, active) {
+            const button = document.getElementById(`reaction-button-${postId}-${emoji}`);
+            if (button) {
+                if (active) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&display=swap');
         
