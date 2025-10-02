@@ -52,11 +52,13 @@
             <p><span class="font-semibold text-kawaii-purple">学年:</span> {{ user.year }}年</p>
         </div>
         
+        {% if is_own_profile %}
         <div class="text-center mt-8">
             <a href="{{ url_for('edit_profile') }}" class="inline-block bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">
                 プロフィールを編集
             </a>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
