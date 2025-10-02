@@ -103,7 +103,13 @@
                     </div>
 
                     <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
-                        <span class="text-lg">👤</span>
+                        {% if post.author and post.author.icon_path %}
+                            <img src="{{ url_for('uploaded_file', filename=post.author.icon_path) }}" alt="{{ post.author.name }}のアイコン" class="w-8 h-8 rounded-full object-cover border border-gray-200">
+                        {% else %}
+                            <div class="w-8 h-8 rounded-full bg-gray-300 border border-gray-200 flex items-center justify-center">
+                                <span class="text-lg">👤</span>
+                            </div>
+                        {% endif %}
                         <span>
                             {{ post.author.name if post.author else '不明' }}
                             {% if post.author.school and post.author.department %}
