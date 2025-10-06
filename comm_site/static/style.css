@@ -61,14 +61,15 @@ h2 {
 .reaction-button {
     display: inline-flex;
     align-items: center;
-    padding: 0.5rem 1rem;
-    border: 2px solid #ff69b4;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ff69b4;
     border-radius: 9999px;
     background-color: white;
     color: #ff69b4;
     font-weight: 500;
     transition: all 0.2s;
     cursor: pointer;
+    font-size: 0.875rem;
 }
 
 .reaction-button:hover {
