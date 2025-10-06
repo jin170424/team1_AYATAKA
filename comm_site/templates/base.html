@@ -70,6 +70,91 @@
             }
         }
     </script>
+    <script>
+        // リアクション関連の関数
+        async function toggleReaction(postId, emoji) {
+            try {
+                const response = await fetch(`/api/reaction/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emoji: emoji })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const reactionButtonId = `reaction-button-${postId}-${emoji}`;
+                    let button = document.getElementById(reactionButtonId);
+
+                    // リアクションが有効で、かつボタンが存在しない場合、新しいボタンを作成する
+                    if (data.active && !button) {
+                        const reactionsContainer = document.getElementById(`reactions-${postId}`);
+                        if (reactionsContainer) {
+                            const newButton = document.createElement('button');
+                            newButton.id = reactionButtonId;
+                            newButton.className = 'reaction-button';
+                            newButton.onclick = () => toggleReaction(postId, emoji);
+
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.className = 'reaction-emoji';
+                            emojiSpan.textContent = emoji;
+                            newButton.appendChild(emojiSpan);
+
+                            const countSpan = document.createElement('span');
+                            countSpan.className = 'reaction-count';
+                            countSpan.id = `reaction-count-${postId}-${emoji}`;
+                            newButton.appendChild(countSpan);
+
+                            reactionsContainer.appendChild(newButton);
+                            button = newButton; // 作成したボタンを対象にする
+                        }
+                    }
+
+                    // カウント数とアクティブ状態を更新
+                    updateReactionCount(postId, emoji, data.count);
+                    toggleReactionButtonState(postId, emoji, data.active);
+
+                    // デフォルト以外の絵文字で、カウント数が0になった場合はボタンを削除
+                    const defaultEmojis = ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡'];
+                    if (data.count === 0 && !data.active && button && !defaultEmojis.includes(emoji)) {
+                        button.remove();
+                    }
+
+                    // 選択後に絵文字ピッカーを閉じる
+                    const picker = document.getElementById(`emoji-picker-${postId}`);
+                    if (picker && picker.classList.contains('show')) {
+                        picker.classList.remove('show');
+                    }
+                }
+            } catch (error) {
+                console.error('リアクションの更新に失敗しました:', error);
+            }
+        }
+
+        function showEmojiPicker(postId) {
+            const picker = document.getElementById(`emoji-picker-${postId}`);
+            picker.classList.toggle('show');
+        }
+
+        function updateReactionCount(postId, emoji, count) {
+            const countElement = document.getElementById(`reaction-count-${postId}-${emoji}`);
+            if (countElement) {
+                countElement.textContent = count;
+            }
+        }
+
+        function toggleReactionButtonState(postId, emoji, active) {
+            const button = document.getElementById(`reaction-button-${postId}-${emoji}`);
+            if (button) {
+                if (active) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&display=swap');
         
