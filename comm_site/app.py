@@ -547,10 +547,12 @@ def profile_view(user_id):
     return render_template("profile.html", 
                            user=user, 
                            is_own_profile=is_own_profile,
-                           is_following=is_following)
+                           is_following=is_following,
+                           # ▼▼▼【追加】ログイン中のユーザーIDを渡す▼▼▼
+                           current_user_id=session["user_id"])
 
 
-# ====== 🔽 追加: フォロー/アンフォロー用API 🔽 ======
+# ====== 🔽 修正: フォロー/アンフォロー用API 🔽 ======
 @app.route('/follow/<int:user_id>', methods=['POST'])
 def follow_user(user_id):
     if "user_id" not in session:
@@ -565,7 +567,10 @@ def follow_user(user_id):
     if user_to_follow.user_id == current_user.user_id:
         return jsonify({'success': False, 'message': '自分自身をフォローすることはできません'}), 400
 
-    if current_user.followed.filter_by(user_id=user_id).first():
+    # ▼▼▼【修正】フォロー中のカウントを取得するロジックを追加▼▼▼
+    is_following = current_user.followed.filter_by(user_id=user_id).first()
+
+    if is_following:
         # 既にフォローしている場合はアンフォロー
         current_user.followed.remove(user_to_follow)
         db.session.commit()
@@ -573,19 +578,30 @@ def follow_user(user_id):
             'success': True, 
             'action': 'unfollowed', 
             'message': f'{user_to_follow.name}さんのフォローを解除しました',
-            'followers_count': user_to_follow.followers.count()
+            'followers_count': user_to_follow.followers.count(),
+            'following_count': current_user.followed.count() # 自身のフォロー中カウント
         })
     else:
         # フォローしていない場合はフォロー
         current_user.followed.append(user_to_follow)
         db.session.commit()
+        
+        # フォローしたユーザー（自分自身）の情報をレスポンスに追加
+        follower_info = {
+            'user_id': current_user.user_id,
+            'name': current_user.name,
+            'icon_path': url_for('uploaded_file', filename=current_user.icon_path) if current_user.icon_path else None
+        }
+
         return jsonify({
             'success': True, 
             'action': 'followed', 
             'message': f'{user_to_follow.name}さんをフォローしました',
-            'followers_count': user_to_follow.followers.count()
+            'followers_count': user_to_follow.followers.count(),
+            'following_count': current_user.followed.count(), # 自身のフォロー中カウント
+            'follower_info': follower_info # フォローしたユーザー（自分）の情報
         })
-# ====== 🔼 追加完了 🔼 ======
+# ====== 🔼 修正完了 🔼 ======
 
 def allowed_file(filename):
     return '.' in filename and \
