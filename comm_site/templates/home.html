@@ -44,8 +44,13 @@
                     </svg>
                     <span>Q&A</span>
                 </a>
+                <a href="{{ url_for('following_board') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">❤️</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
+                </a>
             </nav>
-        </div>
+            </div>
     </div>
 
     <div class="max-w-4xl mx-auto px-4 py-8">
@@ -63,7 +68,7 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' %}
+        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' and current_scope != 'following' %}
         <div class="max-w-2xl mx-auto mb-8">
             <form action="{{ url_for('submit_post') }}" method="POST"
                 class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
@@ -301,6 +306,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
+    // 既存のJavaScriptは省略...
     function toggleMenu() {
         const menu = document.getElementById('sideMenu');
         menu.classList.toggle('-translate-x-full');
@@ -564,7 +570,6 @@
         const commentElement = document.createElement('div');
         commentElement.className = 'flex flex-col';
         commentElement.id = `comment-${commentData.comment_id}`;
-
         commentElement.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex space-x-2 flex-grow">
