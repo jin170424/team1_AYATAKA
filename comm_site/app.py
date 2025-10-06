@@ -28,6 +28,13 @@ db = SQLAlchemy(app)
 
 POSTS_PER_PAGE = 10
 
+# ====== 🔽 追加: フォロー関係を定義する中間テーブル 🔽 ======
+follow = db.Table('follow',
+    db.Column('follower_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True),
+    db.Column('followed_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+)
+# ====== 🔼 追加完了 🔼 ======
+
 # ====== 既存のモデル ======
 class User(db.Model):
     __tablename__ = "User"
@@ -46,12 +53,18 @@ class User(db.Model):
     year = db.Column(db.Integer, nullable=True)
 
     department = db.relationship("Department", backref="users")
+    
+    icon_path = db.Column(db.String(255), nullable=True, default='default_icon.png')
+    header_path = db.Column(db.String(255), nullable=True)
+    introduction = db.Column(db.Text, nullable=True)
+    tags = db.Column(db.String(255), nullable=True)
 
-    # ====== 🔽 追加: プロフィール用カラム 🔽 ======
-    icon_path = db.Column(db.String(255), nullable=True, default='default_icon.png') # アイコン画像のファイルパス
-    header_path = db.Column(db.String(255), nullable=True) # ヘッダー画像のファイルパス
-    introduction = db.Column(db.Text, nullable=True)      # 自己紹介文
-    tags = db.Column(db.String(255), nullable=True)       # タグ (カンマ区切りで保存)
+    # ====== 🔽 追加: フォロー機能のためのリレーションシップ 🔽 ======
+    followed = db.relationship(
+        'User', secondary=follow,
+        primaryjoin=(follow.c.follower_id == user_id),
+        secondaryjoin=(follow.c.followed_id == user_id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     # ====== 🔼 追加完了 🔼 ======
 
 class Department(db.Model):
@@ -192,6 +205,29 @@ def school_specific_board():
                                current_scope=school_scope)
     return redirect(url_for("login"))
 
+# ====== 🔽 追加: フォロー中のユーザーの投稿一覧ページ 🔽 ======
+@app.route("/home/following")
+def following_board():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    page = request.args.get('page', 1, type=int)
+    current_user = User.query.get(session["user_id"])
+
+    # フォローしているユーザーのIDリストを取得
+    followed_users_ids = [user.user_id for user in current_user.followed]
+    
+    posts_pagination = Post.query.filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=POSTS_PER_PAGE, error_out=False
+    )
+    
+    return render_template("home.html", 
+                           user=session["name"], 
+                           posts=posts_pagination.items, 
+                           pagination=posts_pagination,
+                           board_title="フォロー中のユーザーの投稿", 
+                           current_scope="following")
+# ====== 🔼 追加完了 🔼 ======
 
 
 @app.route("/home/notice_board")
@@ -297,7 +333,7 @@ def add_comment(post_id):
         "comment": {
             "comment_id": comment.comment_id,
             "content": comment.content,
-            "user_id": user.user_id, ### 変更点: ユーザーIDを追加 ###
+            "user_id": user.user_id,
             "user_name": user.name if user else "不明",
             "created_at": comment.created_at.strftime('%Y/%m/%d %H:%M')
         }
@@ -322,9 +358,57 @@ def profile_view(user_id):
     # 表示しているプロフィールがログインユーザー自身のものか判定
     is_own_profile = (viewed_user_id == session["user_id"])
 
-    return render_template("profile.html", user=user, is_own_profile=is_own_profile)
+    # ====== 🔽 修正: フォロー関連情報を追加 🔽 ======
+    is_following = False
+    if "user_id" in session and not is_own_profile:
+        current_user = User.query.get(session["user_id"])
+        # 表示しているプロフィールをログインユーザーがフォローしているか判定
+        is_following = current_user.followed.filter_by(user_id=user.user_id).first() is not None
+    # ====== 🔼 修正完了 🔼 ======
 
-# ====== 🔽 追加: プロフィール編集ルート 🔽 ======
+    return render_template("profile.html", 
+                           user=user, 
+                           is_own_profile=is_own_profile,
+                           is_following=is_following)
+
+
+# ====== 🔽 追加: フォロー/アンフォロー用API 🔽 ======
+@app.route('/follow/<int:user_id>', methods=['POST'])
+def follow_user(user_id):
+    if "user_id" not in session:
+        return jsonify({'success': False, 'message': 'ログインが必要です'}), 401
+
+    user_to_follow = User.query.get(user_id)
+    current_user = User.query.get(session['user_id'])
+
+    if not user_to_follow:
+        return jsonify({'success': False, 'message': 'ユーザーが見つかりません'}), 404
+    
+    if user_to_follow.user_id == current_user.user_id:
+        return jsonify({'success': False, 'message': '自分自身をフォローすることはできません'}), 400
+
+    if current_user.followed.filter_by(user_id=user_id).first():
+        # 既にフォローしている場合はアンフォロー
+        current_user.followed.remove(user_to_follow)
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'action': 'unfollowed', 
+            'message': f'{user_to_follow.name}さんのフォローを解除しました',
+            'followers_count': user_to_follow.followers.count()
+        })
+    else:
+        # フォローしていない場合はフォロー
+        current_user.followed.append(user_to_follow)
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'action': 'followed', 
+            'message': f'{user_to_follow.name}さんをフォローしました',
+            'followers_count': user_to_follow.followers.count()
+        })
+# ====== 🔼 追加完了 🔼 ======
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -363,11 +447,9 @@ def edit_profile():
 
     return render_template("edit_profile.html", user=user)
 
-# ====== 🔽 追加: アップロードされたファイルを表示するためのルート 🔽 ======
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-# ====== 🔼 追加完了 🔼 ======
 
 
 #設定画面
