@@ -84,7 +84,51 @@
             {% for post in posts %}
             <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
                 <div class="mb-4">
-                    <p class="text-lg text-kawaii-dark leading-relaxed" id="post-content-{{ post.post_id }}">{{ post.content }}</p>
+                    <p class="text-lg text-kawaii-dark leading-relaxed" id="post-content-{{ post.post_id }}">{{
+                        post.content }}</p>
+
+                    <div class="mt-4">
+                        <!-- リアクション表示エリア -->
+                        <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
+                            
+                            {# --- 描画するリアクションを動的に準備 --- #}
+                            {# 1. 表示する絵文字の辞書を準備 #}
+                            {% set display_reactions = {} %}
+
+                            {# 3. サーバーから渡された実際のリアクション情報で上書き（新しい絵文字もここに含まれる） #}
+                            {% if display_reactions.update(post.reaction_counts) %}{% endif %}
+                            {# --- 準備完了 --- #}
+
+                            {# --- 準備した辞書を元にボタンを描画 --- #}
+                            {% for emoji, count in display_reactions.items() %}
+                                {# デフォルトの絵文字、またはカウントが1以上の絵文字のみ表示する #}
+                                {% if count > 0 %}
+                                    <button 
+                                        class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
+                                        onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')" 
+                                        id="reaction-button-{{ post.post_id }}-{{ emoji }}">
+                                        <span class="reaction-emoji">{{ emoji }}</span>
+                                        <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count }}</span>
+                                    </button>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <!-- 新しいリアクション追加ボタン -->
+                        <button class="text-sm text-kawaii-dark hover:text-kawaii-pink flex items-center gap-2"
+                            onclick="showEmojiPicker({{ post.post_id }})">
+                            <span>😀</span>
+                            <span>リアクションを追加</span>
+                        </button>
+
+                        <!-- 絵文字ピッカー -->
+                        <div class="reaction-emoji-picker mt-2" id="emoji-picker-{{ post.post_id }}">
+                            {% for emoji in ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡','😄', '🥰','💪', '🙏', '🔥'] %}
+                            <span class="reaction-emoji" onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')">{{
+                                emoji }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
 
                     <div id="edit-form-post-{{ post.post_id }}" class="hidden mt-2">
                         <textarea rows="4" required
@@ -169,11 +213,11 @@
                                 </div>
                                 {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
                                 <div class="flex space-x-2 ml-2">
-                                    <button onclick="editComment({{ comment.comment_id }})" 
+                                    <button onclick="editComment({{ comment.comment_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         ✏️ 編集
                                     </button>
-                                    <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})" 
+                                    <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         🗑️ 削除
                                     </button>
@@ -182,7 +226,7 @@
                             </div>
                             <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
                             </div>
-                            
+
                             <div id="edit-form-{{ comment.comment_id }}" class="hidden mt-2">
                                 <div class="flex space-x-2">
                                     <textarea rows="2" required
@@ -255,6 +299,7 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
     function toggleMenu() {
         const menu = document.getElementById('sideMenu');
@@ -272,7 +317,7 @@
     function toggleComments(commentsId) {
         const commentsDiv = document.getElementById(commentsId);
         const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
-        
+
         if (commentsDiv.classList.contains('hidden')) {
             commentsDiv.classList.remove('hidden');
             arrowIcon.classList.add('rotate-180');
@@ -294,30 +339,30 @@
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 投稿要素を削除
-                const postElement = document.getElementById(`post-${postId}`);
-                if (postElement) {
-                    postElement.remove();
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 投稿要素を削除
+                    const postElement = document.getElementById(`post-${postId}`);
+                    if (postElement) {
+                        postElement.remove();
+                    }
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
                 }
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('削除中にエラーが発生しました', 'error');
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('削除中にエラーが発生しました', 'error');
+            });
     }
 
     // 投稿編集フォームを表示
     function editPost(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
-        
+
         // 投稿内容を非表示にし、編集フォームを表示
         postContent.classList.add('hidden');
         editForm.classList.remove('hidden');
@@ -327,7 +372,7 @@
     function cancelPostEdit(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
-        
+
         // 編集フォームを非表示にし、投稿内容を表示
         editForm.classList.add('hidden');
         postContent.classList.remove('hidden');
@@ -337,7 +382,7 @@
     function savePostEdit(postId) {
         const editTextarea = document.getElementById('edit-textarea-post-' + postId);
         const newContent = editTextarea.value.trim();
-        
+
         if (!newContent) {
             showMessage('投稿内容を入力してください', 'error');
             return;
@@ -350,24 +395,24 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 投稿内容を更新
-                const postContent = document.getElementById('post-content-' + postId);
-                postContent.textContent = data.content;
-                
-                // 編集フォームを閉じる
-                cancelPostEdit(postId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('更新中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 投稿内容を更新
+                    const postContent = document.getElementById('post-content-' + postId);
+                    postContent.textContent = data.content;
+
+                    // 編集フォームを閉じる
+                    cancelPostEdit(postId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('更新中にエラーが発生しました', 'error');
+            });
     }
 
     // コメント削除機能
@@ -382,26 +427,26 @@
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // コメント要素を削除
-                const commentElement = document.getElementById(`comment-${commentId}`);
-                if (commentElement) {
-                    commentElement.remove();
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // コメント要素を削除
+                    const commentElement = document.getElementById(`comment-${commentId}`);
+                    if (commentElement) {
+                        commentElement.remove();
+                    }
+
+                    // コメント数を更新
+                    updateCommentCount(postId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
                 }
-                
-                // コメント数を更新
-                updateCommentCount(postId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('削除中にエラーが発生しました', 'error');
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('削除中にエラーが発生しました', 'error');
+            });
     }
 
     // コメント編集機能
@@ -409,7 +454,7 @@
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
-        
+
         // 編集フォームを表示
         editForm.classList.remove('hidden');
         // コメント内容を非表示
@@ -421,7 +466,7 @@
     function cancelEdit(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
-        
+
         // 編集フォームを非表示
         editForm.classList.add('hidden');
         // コメント内容を表示
@@ -432,7 +477,7 @@
     function saveCommentEdit(commentId) {
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
         const newContent = editTextarea.value.trim();
-        
+
         if (!newContent) {
             showMessage('コメント内容を入力してください', 'error');
             return;
@@ -445,31 +490,31 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // コメント内容を更新
-                const commentContent = document.getElementById('comment-content-' + commentId);
-                commentContent.textContent = data.content;
-                
-                // 編集フォームを非表示
-                cancelEdit(commentId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('更新中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // コメント内容を更新
+                    const commentContent = document.getElementById('comment-content-' + commentId);
+                    commentContent.textContent = data.content;
+
+                    // 編集フォームを非表示
+                    cancelEdit(commentId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('更新中にエラーが発生しました', 'error');
+            });
     }
 
     // コメント追加機能
     function addComment(postId) {
         const textarea = document.getElementById(`comment-textarea-${postId}`);
         const content = textarea.value.trim();
-        
+
         if (!content) {
             showMessage('コメント内容を入力してください', 'error');
             return;
@@ -482,44 +527,44 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // テキストエリアをクリア
-                textarea.value = '';
-                
-                // 新しいコメントを追加
-                addCommentToDOM(postId, data.comment);
-                
-                // コメント数を更新
-                updateCommentCount(postId);
-                
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('コメント追加中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // テキストエリアをクリア
+                    textarea.value = '';
+
+                    // 新しいコメントを追加
+                    addCommentToDOM(postId, data.comment);
+
+                    // コメント数を更新
+                    updateCommentCount(postId);
+
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('コメント追加中にエラーが発生しました', 'error');
+            });
     }
 
-// 新しいコメントをDOMに追加
+    // 新しいコメントをDOMに追加
     function addCommentToDOM(postId, commentData) {
         let commentsContainer = document.getElementById(`comments-${postId}`);
-        
+
         if (!commentsContainer) {
             // コメントセクションが存在しない場合は作成
             createCommentsSection(postId);
             commentsContainer = document.getElementById(`comments-${postId}`);
         }
-        
+
+        // 新しいコメント要素を作成
         const commentElement = document.createElement('div');
         commentElement.className = 'flex flex-col';
         commentElement.id = `comment-${commentData.comment_id}`;
-        
-        // ### 変更点: JavaScriptでの動的追加時もプロフィールへのリンクを設定 ###
+
         commentElement.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex space-x-2 flex-grow">
@@ -555,14 +600,18 @@
                 </div>
             </div>
         `;
-        
+
+        // コメントを追加
         commentsContainer.appendChild(commentElement);
-        
+
+        // トグルボタンを表示（コメントが存在する場合）
         const toggleButton = commentsContainer.previousElementSibling;
         if (toggleButton) {
             toggleButton.style.display = 'flex';
         }
-        
+
+        // 新しくコメントを追加した場合は自動的に展開表示
+        // ただし、既にコメントセクションが存在する場合は現在の状態を維持
         if (commentsContainer.classList.contains('hidden')) {
             commentsContainer.classList.remove('hidden');
             const arrowIcon = document.getElementById(`arrow-${postId}`);
@@ -576,17 +625,20 @@
     function createCommentsSection(postId) {
         const postElement = document.getElementById(`post-${postId}`);
         const commentForm = postElement.querySelector('.mt-2');
-        
+
+        // コメントセクションを作成
         const commentsSection = document.createElement('div');
         commentsSection.id = `comments-${postId}`;
         commentsSection.className = 'mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4';
-        
+
+        // コメントセクションをコメントフォームの前に挿入
         commentForm.parentNode.insertBefore(commentsSection, commentForm);
-        
+
+        // トグルボタンを作成
         const toggleButton = document.createElement('button');
         toggleButton.className = 'w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200';
         toggleButton.onclick = () => toggleComments(`comments-${postId}`);
-        
+
         toggleButton.innerHTML = `
             <span class="text-sm text-kawaii-dark flex items-center space-x-2">
                 <span class="text-kawaii-purple">💬</span>
@@ -596,7 +648,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
         `;
-        
+
+        // トグルボタンをコメントセクションの前に挿入
         commentsSection.parentNode.insertBefore(toggleButton, commentsSection);
     }
 
@@ -604,7 +657,7 @@
     function updateCommentCount(postId) {
         const commentsContainer = document.getElementById(`comments-${postId}`);
         const commentCountElement = document.getElementById(`comment-count-${postId}`);
-        
+
         if (commentsContainer && commentCountElement) {
             const commentCount = commentsContainer.querySelectorAll('.flex.flex-col').length;
             commentCountElement.textContent = `${commentCount}件のコメント`;
@@ -620,13 +673,13 @@
 
         const messageDiv = document.createElement('div');
         messageDiv.className = `message-toast fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
-        
+
         if (type === 'success') {
             messageDiv.classList.add('bg-green-500', 'text-white');
         } else {
             messageDiv.classList.add('bg-red-500', 'text-white');
         }
-        
+
         messageDiv.textContent = message;
         document.body.appendChild(messageDiv);
 
