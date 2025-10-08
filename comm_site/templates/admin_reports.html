@@ -5,6 +5,16 @@
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日時</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">被報告者</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">対象コンテンツ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">通報理由</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">報告者</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">アクション</th>
+                        </tr>
+                    </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for report in reports %}
                         <tr class="cursor-pointer hover:bg-gray-50 report-row" 
@@ -19,7 +29,7 @@
                             data-toggle-restriction-url="{{ url_for('toggle_user_restriction', user_id=report.reported_user_id) }}"
                             data-resolve-url="{{ url_for('resolve_report', report_id=report.report_id) }}"
                             data-is-restricted="{{ report.reported_user.is_restricted|lower }}">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ report.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ report.created_at.strftime('%Y/%m/%d %H:%M') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ report.reported_user.name }}</div>
                                 <div class="text-sm text-gray-500">{{ report.reported_user.student_id }}</div>
@@ -40,6 +50,9 @@
                             </td>
                         </tr>
                         {% else %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">新しい通報はありません。</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -57,32 +70,35 @@
                     <span class="text-2xl">&times;</span>
                 </button>
             </div>
-            <div class="mt-4 text-left space-y-4">
-                <div>
-                    <h4 class="font-semibold text-gray-700">対象コンテンツ</h4>
-                    <p id="modal-content-type" class="text-sm text-gray-500"></p>
-                    <div class="mt-1 p-3 bg-gray-50 rounded-md border">
-                        <p id="modal-content-body" class="text-gray-800 whitespace-pre-wrap"></p>
+            
+            <div class="mt-4 text-left">
+                <dl class="divide-y divide-gray-200">
+                    <div class="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                        <dt class="text-sm font-medium text-gray-500">被報告者</dt>
+                        <dd id="modal-reported-user" class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"></dd>
                     </div>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-gray-700">通報理由</h4>
-                    <p id="modal-report-reason" class="p-3 bg-gray-50 rounded-md border text-gray-800"></p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h4 class="font-semibold text-gray-700">被報告者</h4>
-                        <p id="modal-reported-user" class="text-gray-800"></p>
+                    <div class="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                        <dt class="text-sm font-medium text-gray-500">報告者</dt>
+                        <dd id="modal-reporter" class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"></dd>
                     </div>
-                    <div>
-                        <h4 class="font-semibold text-gray-700">報告者</h4>
-                        <p id="modal-reporter" class="text-gray-800"></p>
+                    <div class="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                        <dt class="text-sm font-medium text-gray-500">報告日時</dt>
+                        <dd id="modal-created-at" class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2"></dd>
                     </div>
-                </div>
-                 <div>
-                    <h4 class="font-semibold text-gray-700">報告日時</h4>
-                    <p id="modal-created-at" class="text-gray-800"></p>
-                </div>
+                    <div class="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                        <dt class="text-sm font-medium text-gray-500">対象コンテンツ</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <span id="modal-content-type" class="font-semibold"></span>
+                            <div class="mt-2 p-3 bg-gray-50 rounded-md border">
+                                <p id="modal-content-body" class="whitespace-pre-wrap"></p>
+                            </div>
+                        </dd>
+                    </div>
+                    <div class="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
+                        <dt class="text-sm font-medium text-gray-500">通報理由</dt>
+                        <dd id="modal-report-reason" class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap"></dd>
+                    </div>
+                </dl>
             </div>
             <div class="mt-6 pt-4 border-t items-center px-4 py-3 flex justify-end gap-x-3">
                 <form id="modal-restriction-form" action="" method="POST" class="inline-block">
