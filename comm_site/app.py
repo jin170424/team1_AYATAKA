@@ -3,10 +3,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room # join_room, leave_room をインポート
 import os # os をインポート
 from werkzeug.utils import secure_filename # secure_filename をインポート
-from sqlalchemy import func  
+from sqlalchemy import func, or_, distinct
 from collections import defaultdict 
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
@@ -125,6 +125,20 @@ class Comment(db.Model):
     post = db.relationship("Post", backref="comments")
     user = db.relationship("User", backref="comments")
 
+# app.py のモデル定義セクションに追加
+
+class DirectMessage(db.Model):
+    __tablename__ = "direct_message"
+    message_id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_messages")
+
 class Reaction(db.Model):
     __tablename__ = "reaction"
     reaction_id = db.Column(db.Integer, primary_key=True)
@@ -168,6 +182,129 @@ def check_restriction(f):
     return decorated_function
 # ====== 🔼 追加完了 🔼 ======
 
+# === 以下、ルートやSocketIOイベントハンドラなどを記述 ===
+
+# ユーザーIDとセッションIDを管理するための辞書
+user_sids = {}
+
+@socketio.on('connect')
+def handle_connect():
+    user_id = session.get('user_id')
+    if user_id:
+        user_sids[user_id] = request.sid
+        # ユーザー自身の部屋に入る（通知などに利用可能）
+        join_room(user_id)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    user_id = session.get('user_id')
+    if user_id and user_id in user_sids:
+        del user_sids[user_id]
+
+
+# ====== 🔽 追加: DMメッセージ履歴取得API 🔽 ======
+@app.route("/api/messages/<int:recipient_id>")
+def get_messages(recipient_id):
+    if "user_id" not in session:
+        return jsonify({"error": "ログインが必要です"}), 401
+    
+    sender_id = session["user_id"]
+    
+    messages = DirectMessage.query.filter(
+        or_(
+            (DirectMessage.sender_id == sender_id) & (DirectMessage.recipient_id == recipient_id),
+            (DirectMessage.sender_id == recipient_id) & (DirectMessage.recipient_id == sender_id)
+        )
+    ).order_by(DirectMessage.created_at.asc()).all()
+    
+    message_list = []
+    for msg in messages:
+        message_list.append({
+            "message_id": msg.message_id,
+            "sender_id": msg.sender_id,
+            "recipient_id": msg.recipient_id,
+            "content": msg.content,
+            "created_at": msg.created_at.strftime('%Y/%m/%d %H:%M')
+        })
+        
+    return jsonify(message_list)
+# ====== 🔼 追加完了 🔼 ======
+
+# ====== 🔽 追加: 会話履歴のあるユーザー一覧を取得するAPI 🔽 ======
+@app.route('/api/conversations')
+def get_conversations():
+    if "user_id" not in session:
+        return jsonify({"error": "ログインが必要です"}), 401
+    
+    user_id = session['user_id']
+    
+    # 自分が送信した相手のIDを取得
+    sent_to_ids = db.session.query(distinct(DirectMessage.recipient_id)).filter(
+        DirectMessage.sender_id == user_id
+    )
+    # 自分に送信してきた相手のIDを取得
+    received_from_ids = db.session.query(distinct(DirectMessage.sender_id)).filter(
+        DirectMessage.recipient_id == user_id
+    )
+    
+    # 両方のIDを結合して、ユニークなIDリストを作成
+    partner_ids_query = sent_to_ids.union(received_from_ids)
+    
+    # ユーザーオブジェクトを取得
+    partners = User.query.filter(User.user_id.in_(partner_ids_query)).all()
+    
+    # フロントエンドで使いやすいように整形
+    conversations = [
+        {
+            "user_id": partner.user_id,
+            "name": partner.name,
+            "icon_path": url_for('uploaded_file', filename=partner.icon_path) if partner.icon_path else None
+        } for partner in partners
+    ]
+    
+    return jsonify(conversations)
+# ====== 🔼 追加完了 🔼 ======
+
+
+# ====== 🔽 追加: DM送信用SocketIOイベント 🔽 ======
+@socketio.on('send_dm')
+def handle_send_dm(data):
+    if 'user_id' not in session:
+        return
+    
+    sender_id = session['user_id']
+    recipient_id = data.get('recipient_id')
+    content = data.get('content')
+    
+    if not recipient_id or not content:
+        return
+
+    # メッセージをDBに保存
+    new_message = DirectMessage(
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        content=content
+    )
+    db.session.add(new_message)
+    db.session.commit()
+    
+    # 送信者と受信者にメッセージを送信
+    message_payload = {
+        'message_id': new_message.message_id,
+        'sender_id': sender_id,
+        'recipient_id': recipient_id,
+        'content': content,
+        'created_at': new_message.created_at.strftime('%Y/%m/%d %H:%M')
+    }
+    
+    # 受信者がオンラインなら直接送信
+    recipient_sid = user_sids.get(recipient_id)
+    if recipient_sid:
+        emit('receive_dm', message_payload, room=recipient_sid)
+        
+    # 送信者自身にも送信（UI更新のため）
+    emit('receive_dm', message_payload, room=request.sid)
+# ====== 🔼 追加完了 🔼 ======
 
 @app.route("/")
 def index():
