@@ -3,12 +3,13 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room # join_room, leave_room をインポート
 import os # os をインポート
 from werkzeug.utils import secure_filename # secure_filename をインポート
-from sqlalchemy import func  
+from sqlalchemy import func, or_, distinct
 from collections import defaultdict 
 from flask_migrate import Migrate # Migrate
+from functools import wraps # ◀️ 追加: デコレータに必要
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
@@ -39,7 +40,7 @@ follow = db.Table('follow',
 )
 # ====== 🔼 追加完了 🔼 ======
 
-# ====== 既存のモデル ======
+# ====== 🔽 モデルの修正・追加 🔽 ======
 class User(db.Model):
     __tablename__ = "User"
     user_id = db.Column(db.Integer, primary_key=True)
@@ -63,6 +64,9 @@ class User(db.Model):
     introduction = db.Column(db.Text, nullable=True)
     tags = db.Column(db.String(255), nullable=True)
 
+    # ◀️ 追加: 機能制限フラグ
+    is_restricted = db.Column(db.Boolean, default=False, nullable=False)
+
     # ====== 🔽 追加: フォロー機能のためのリレーションシップ 🔽 ======
     followed = db.relationship(
         'User', secondary=follow,
@@ -70,6 +74,25 @@ class User(db.Model):
         secondaryjoin=(follow.c.followed_id == user_id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     # ====== 🔼 追加完了 🔼 ======
+
+# ◀️ 追加: 通報情報を格納するモデル
+class Report(db.Model):
+    __tablename__ = "report"
+    report_id = db.Column(db.Integer, primary_key=True)
+    reporter_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    reported_user_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("post.post_id"), nullable=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey("comment.comment_id"), nullable=True)
+    reason = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    is_resolved = db.Column(db.Boolean, default=False, nullable=False)
+
+    reporter = db.relationship("User", foreign_keys=[reporter_id], backref="sent_reports")
+    reported_user = db.relationship("User", foreign_keys=[reported_user_id], backref="received_reports")
+    post = db.relationship("Post", backref="reports")
+    comment = db.relationship("Comment", backref="reports")
+# ====== 🔼 モデルの修正・追加完了 🔼 ======
+
 
 class Department(db.Model):
     __tablename__ = "department"
@@ -104,6 +127,18 @@ class Comment(db.Model):
 
 # app.py のモデル定義セクションに追加
 
+class DirectMessage(db.Model):
+    __tablename__ = "direct_message"
+    message_id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("User.user_id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    sender = db.relationship("User", foreign_keys=[sender_id], backref="sent_messages")
+    recipient = db.relationship("User", foreign_keys=[recipient_id], backref="received_messages")
+
 class Reaction(db.Model):
     __tablename__ = "reaction"
     reaction_id = db.Column(db.Integer, primary_key=True)
@@ -117,6 +152,7 @@ class Reaction(db.Model):
 
     # ユーザーは1つの投稿に同じリアクションを1度しかできないように制約を設定
     __table_args__ = (db.UniqueConstraint('post_id', 'user_id', 'reaction_type', name='_user_post_reaction_uc'),)
+
 class QA(db.Model):
     __tablename__ = "qa"
     qa_id = db.Column(db.Integer, primary_key=True)
@@ -128,6 +164,147 @@ class QA(db.Model):
 
     user = db.relationship("User", backref="questions")
 
+# ====== 🔽 追加: 機能制限チェック用のデコレータ 🔽 ======
+def check_restriction(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" in session:
+            user = User.query.get(session["user_id"])
+            # ユーザーが制限されている場合
+            if user and user.is_restricted:
+                # 許可されたページリスト
+                allowed_endpoints = ['notice_board', 'logout', 'login', 'static', 'uploaded_file', 'index']
+                # 現在のアクセス先が許可リストにない場合、通知用掲示板へリダイレクト
+                if request.endpoint not in allowed_endpoints:
+                    flash("アカウントが制限されているため、このページにはアクセスできません。", "error")
+                    return redirect(url_for('notice_board'))
+        return f(*args, **kwargs)
+    return decorated_function
+# ====== 🔼 追加完了 🔼 ======
+
+# === 以下、ルートやSocketIOイベントハンドラなどを記述 ===
+
+# ユーザーIDとセッションIDを管理するための辞書
+user_sids = {}
+
+@socketio.on('connect')
+def handle_connect():
+    user_id = session.get('user_id')
+    if user_id:
+        user_sids[user_id] = request.sid
+        # ユーザー自身の部屋に入る（通知などに利用可能）
+        join_room(user_id)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    user_id = session.get('user_id')
+    if user_id and user_id in user_sids:
+        del user_sids[user_id]
+
+
+# ====== 🔽 追加: DMメッセージ履歴取得API 🔽 ======
+@app.route("/api/messages/<int:recipient_id>")
+def get_messages(recipient_id):
+    if "user_id" not in session:
+        return jsonify({"error": "ログインが必要です"}), 401
+    
+    sender_id = session["user_id"]
+    
+    messages = DirectMessage.query.filter(
+        or_(
+            (DirectMessage.sender_id == sender_id) & (DirectMessage.recipient_id == recipient_id),
+            (DirectMessage.sender_id == recipient_id) & (DirectMessage.recipient_id == sender_id)
+        )
+    ).order_by(DirectMessage.created_at.asc()).all()
+    
+    message_list = []
+    for msg in messages:
+        message_list.append({
+            "message_id": msg.message_id,
+            "sender_id": msg.sender_id,
+            "recipient_id": msg.recipient_id,
+            "content": msg.content,
+            "created_at": msg.created_at.strftime('%Y/%m/%d %H:%M')
+        })
+        
+    return jsonify(message_list)
+# ====== 🔼 追加完了 🔼 ======
+
+# ====== 🔽 追加: 会話履歴のあるユーザー一覧を取得するAPI 🔽 ======
+@app.route('/api/conversations')
+def get_conversations():
+    if "user_id" not in session:
+        return jsonify({"error": "ログインが必要です"}), 401
+    
+    user_id = session['user_id']
+    
+    # 自分が送信した相手のIDを取得
+    sent_to_ids = db.session.query(distinct(DirectMessage.recipient_id)).filter(
+        DirectMessage.sender_id == user_id
+    )
+    # 自分に送信してきた相手のIDを取得
+    received_from_ids = db.session.query(distinct(DirectMessage.sender_id)).filter(
+        DirectMessage.recipient_id == user_id
+    )
+    
+    # 両方のIDを結合して、ユニークなIDリストを作成
+    partner_ids_query = sent_to_ids.union(received_from_ids)
+    
+    # ユーザーオブジェクトを取得
+    partners = User.query.filter(User.user_id.in_(partner_ids_query)).all()
+    
+    # フロントエンドで使いやすいように整形
+    conversations = [
+        {
+            "user_id": partner.user_id,
+            "name": partner.name,
+            "icon_path": url_for('uploaded_file', filename=partner.icon_path) if partner.icon_path else None
+        } for partner in partners
+    ]
+    
+    return jsonify(conversations)
+# ====== 🔼 追加完了 🔼 ======
+
+
+# ====== 🔽 追加: DM送信用SocketIOイベント 🔽 ======
+@socketio.on('send_dm')
+def handle_send_dm(data):
+    if 'user_id' not in session:
+        return
+    
+    sender_id = session['user_id']
+    recipient_id = data.get('recipient_id')
+    content = data.get('content')
+    
+    if not recipient_id or not content:
+        return
+
+    # メッセージをDBに保存
+    new_message = DirectMessage(
+        sender_id=sender_id,
+        recipient_id=recipient_id,
+        content=content
+    )
+    db.session.add(new_message)
+    db.session.commit()
+    
+    # 送信者と受信者にメッセージを送信
+    message_payload = {
+        'message_id': new_message.message_id,
+        'sender_id': sender_id,
+        'recipient_id': recipient_id,
+        'content': content,
+        'created_at': new_message.created_at.strftime('%Y/%m/%d %H:%M')
+    }
+    
+    # 受信者がオンラインなら直接送信
+    recipient_sid = user_sids.get(recipient_id)
+    if recipient_sid:
+        emit('receive_dm', message_payload, room=recipient_sid)
+        
+    # 送信者自身にも送信（UI更新のため）
+    emit('receive_dm', message_payload, room=request.sid)
+# ====== 🔼 追加完了 🔼 ======
 
 @app.route("/")
 def index():
@@ -177,10 +354,12 @@ def login():
     return render_template("login.html")
 
 @app.route("/home")
+@check_restriction # ◀️ デコレータを追加
 def home():
     return redirect(url_for("school_specific_board"))
 
 @app.route("/home/school_wide")
+@check_restriction # ◀️ デコレータを追加
 def school_wide_board():
     if "role" in session and session["role"] == "student":
         page = request.args.get('page', 1, type=int)
@@ -188,45 +367,38 @@ def school_wide_board():
         posts_pagination = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
-    posts = posts_pagination.items
+        posts = posts_pagination.items
 
-            # ▼▼▼【ここから追加】▼▼▼
-    if posts:
-        post_ids = [p.post_id for p in posts]
-        user_id = session.get("user_id")
+        if posts:
+            post_ids = [p.post_id for p in posts]
+            user_id = session.get("user_id")
 
-        # 1. 各投稿・各絵文字のリアクション数を一括で取得
-        reaction_counts = db.session.query(
-            Reaction.post_id,
-            Reaction.reaction_type,
-            func.count(Reaction.reaction_id)
-        ).filter(Reaction.post_id.in_(post_ids)).group_by(
-            Reaction.post_id,
-            Reaction.reaction_type
-        ).all()
-        
-        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
-        reactions_by_post = defaultdict(dict)
-        for post_id, emoji, count in reaction_counts:
-            reactions_by_post[post_id][emoji] = count
+            reaction_counts = db.session.query(
+                Reaction.post_id,
+                Reaction.reaction_type,
+                func.count(Reaction.reaction_id)
+            ).filter(Reaction.post_id.in_(post_ids)).group_by(
+                Reaction.post_id,
+                Reaction.reaction_type
+            ).all()
+            
+            reactions_by_post = defaultdict(dict)
+            for post_id, emoji, count in reaction_counts:
+                reactions_by_post[post_id][emoji] = count
 
-        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
-        user_reactions_query = db.session.query(
-            Reaction.post_id,
-            Reaction.reaction_type
-        ).filter(
-            Reaction.post_id.in_(post_ids),
-            Reaction.user_id == user_id
-        ).all()
-        
-        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
-        user_reactions_set = set(user_reactions_query)
+            user_reactions_query = db.session.query(
+                Reaction.post_id,
+                Reaction.reaction_type
+            ).filter(
+                Reaction.post_id.in_(post_ids),
+                Reaction.user_id == user_id
+            ).all()
+            
+            user_reactions_set = set(user_reactions_query)
 
-        # 3. 各投稿オブジェクトにリアクション情報を追加
-        for post in posts:
-            post.reaction_counts = reactions_by_post.get(post.post_id, {})
-            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    # ▲▲▲【ここまで追加】▲▲▲
+            for post in posts:
+                post.reaction_counts = reactions_by_post.get(post.post_id, {})
+                post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
         
         return render_template("home.html",
                                user=session["name"],
@@ -238,6 +410,7 @@ def school_wide_board():
 
 
 @app.route("/home/school_specific")
+@check_restriction # ◀️ デコレータを追加
 def school_specific_board():
     if "role" in session and session["role"] == "student":
         user_school_id = session.get("school_id")
@@ -251,46 +424,38 @@ def school_specific_board():
         posts_pagination = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
-
-    posts = posts_pagination.items
+        posts = posts_pagination.items
     
-    # ▼▼▼【ここから追加】▼▼▼
-    if posts:
-        post_ids = [p.post_id for p in posts]
-        user_id = session.get("user_id")
+        if posts:
+            post_ids = [p.post_id for p in posts]
+            user_id = session.get("user_id")
 
-        # 1. 各投稿・各絵文字のリアクション数を一括で取得
-        reaction_counts = db.session.query(
-            Reaction.post_id,
-            Reaction.reaction_type,
-            func.count(Reaction.reaction_id)
-        ).filter(Reaction.post_id.in_(post_ids)).group_by(
-            Reaction.post_id,
-            Reaction.reaction_type
-        ).all()
-        
-        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
-        reactions_by_post = defaultdict(dict)
-        for post_id, emoji, count in reaction_counts:
-            reactions_by_post[post_id][emoji] = count
+            reaction_counts = db.session.query(
+                Reaction.post_id,
+                Reaction.reaction_type,
+                func.count(Reaction.reaction_id)
+            ).filter(Reaction.post_id.in_(post_ids)).group_by(
+                Reaction.post_id,
+                Reaction.reaction_type
+            ).all()
+            
+            reactions_by_post = defaultdict(dict)
+            for post_id, emoji, count in reaction_counts:
+                reactions_by_post[post_id][emoji] = count
 
-        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
-        user_reactions_query = db.session.query(
-            Reaction.post_id,
-            Reaction.reaction_type
-        ).filter(
-            Reaction.post_id.in_(post_ids),
-            Reaction.user_id == user_id
-        ).all()
-        
-        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
-        user_reactions_set = set(user_reactions_query)
+            user_reactions_query = db.session.query(
+                Reaction.post_id,
+                Reaction.reaction_type
+            ).filter(
+                Reaction.post_id.in_(post_ids),
+                Reaction.user_id == user_id
+            ).all()
+            
+            user_reactions_set = set(user_reactions_query)
 
-        # 3. 各投稿オブジェクトにリアクション情報を追加
-        for post in posts:
-            post.reaction_counts = reactions_by_post.get(post.post_id, {})
-            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    # ▲▲▲【ここまで追加】▲▲▲
+            for post in posts:
+                post.reaction_counts = reactions_by_post.get(post.post_id, {})
+                post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
 
         school_info = School.query.filter_by(school_id=user_school_id).first()
         board_title = f"{school_info.school_name} 掲示板" if school_info else "校舎別掲示板"
@@ -303,8 +468,8 @@ def school_specific_board():
                                current_scope=school_scope)
     return redirect(url_for("login"))
 
-# ====== 🔽 追加: フォロー中のユーザーの投稿一覧ページ 🔽 ======
 @app.route("/home/following")
+@check_restriction # ◀️ デコレータを追加
 def following_board():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -312,21 +477,17 @@ def following_board():
     page = request.args.get('page', 1, type=int)
     current_user = User.query.get(session["user_id"])
 
-    # フォローしているユーザーのIDリストを取得
     followed_users_ids = [user.user_id for user in current_user.followed]
     
     posts_pagination = Post.query.filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
-
     posts = posts_pagination.items
     
-    # ▼▼▼【ここから追加】▼▼▼
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
 
-        # 1. 各投稿・各絵文字のリアクション数を一括で取得
         reaction_counts = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type,
@@ -336,12 +497,10 @@ def following_board():
             Reaction.reaction_type
         ).all()
         
-        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
 
-        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
         user_reactions_query = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type
@@ -350,14 +509,11 @@ def following_board():
             Reaction.user_id == user_id
         ).all()
         
-        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
         user_reactions_set = set(user_reactions_query)
 
-        # 3. 各投稿オブジェクトにリアクション情報を追加
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    # ▲▲▲【ここまで追加】▲▲▲
     
     return render_template("home.html", 
                            user=session["name"], 
@@ -365,7 +521,6 @@ def following_board():
                            pagination=posts_pagination,
                            board_title="フォロー中のユーザーの投稿", 
                            current_scope="following")
-# ====== 🔼 追加完了 🔼 ======
 
 
 @app.route("/home/notice_board")
@@ -387,15 +542,12 @@ def notice_board():
     posts_pagination = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
-
     posts = posts_pagination.items
     
-    # ▼▼▼【ここから追加】▼▼▼
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
 
-        # 1. 各投稿・各絵文字のリアクション数を一括で取得
         reaction_counts = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type,
@@ -405,12 +557,10 @@ def notice_board():
             Reaction.reaction_type
         ).all()
         
-        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
 
-        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
         user_reactions_query = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type
@@ -419,14 +569,11 @@ def notice_board():
             Reaction.user_id == user_id
         ).all()
         
-        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
         user_reactions_set = set(user_reactions_query)
 
-        # 3. 各投稿オブジェクトにリアクション情報を追加
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    # ▲▲▲【ここまで追加】▲▲▲
     
     return render_template("home.html", 
                            user=session["name"], 
@@ -436,6 +583,7 @@ def notice_board():
                            current_scope="notice0")
 
 @app.route("/post", methods=["POST"])
+@check_restriction # ◀️ デコレータを追加
 def submit_post():
     if "user_id" not in session or session["role"] != "student":
         return redirect(url_for("login"))
@@ -475,14 +623,16 @@ def delete_post(post_id):
     if post.user_id != session["user_id"] and session["role"] != "admin":
         return jsonify({"success": False, "message": "削除権限がありません"}), 403
 
+    # ◀️ 関連する通報も削除
+    Report.query.filter_by(post_id=post.post_id).delete()
     Comment.query.filter_by(post_id=post.post_id).delete()
-
     db.session.delete(post)
     db.session.commit()
 
     return jsonify({"success": True, "message": "投稿を削除しました"})
 
 @app.route("/comment/<int:post_id>", methods=["POST"])
+@check_restriction # ◀️ デコレータを追加
 def add_comment(post_id):
     if "user_id" not in session:
         return jsonify({"success": False, "message": "ログインが必要です"}), 401
@@ -517,14 +667,13 @@ def add_comment(post_id):
         }
     })
 
-### 変更点: プロフィール表示ルートを修正 ###
 @app.route("/profile", defaults={'user_id': None})
 @app.route("/profile/<int:user_id>")
+@check_restriction # ◀️ デコレータを追加
 def profile_view(user_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # 表示対象のユーザーIDを決定
     viewed_user_id = user_id if user_id is not None else session["user_id"]
     
     user = User.query.get(viewed_user_id)
@@ -533,27 +682,22 @@ def profile_view(user_id):
         flash("ユーザーが見つかりませんでした。", "error")
         return redirect(request.referrer or url_for("home"))
 
-    # 表示しているプロフィールがログインユーザー自身のものか判定
     is_own_profile = (viewed_user_id == session["user_id"])
 
-    # ====== 🔽 修正: フォロー関連情報を追加 🔽 ======
     is_following = False
     if "user_id" in session and not is_own_profile:
         current_user = User.query.get(session["user_id"])
-        # 表示しているプロフィールをログインユーザーがフォローしているか判定
         is_following = current_user.followed.filter_by(user_id=user.user_id).first() is not None
-    # ====== 🔼 修正完了 🔼 ======
 
     return render_template("profile.html", 
                            user=user, 
                            is_own_profile=is_own_profile,
                            is_following=is_following,
-                           # ▼▼▼【追加】ログイン中のユーザーIDを渡す▼▼▼
                            current_user_id=session["user_id"])
 
 
-# ====== 🔽 修正: フォロー/アンフォロー用API 🔽 ======
 @app.route('/follow/<int:user_id>', methods=['POST'])
+@check_restriction # ◀️ デコレータを追加
 def follow_user(user_id):
     if "user_id" not in session:
         return jsonify({'success': False, 'message': 'ログインが必要です'}), 401
@@ -567,11 +711,9 @@ def follow_user(user_id):
     if user_to_follow.user_id == current_user.user_id:
         return jsonify({'success': False, 'message': '自分自身をフォローすることはできません'}), 400
 
-    # ▼▼▼【修正】フォロー中のカウントを取得するロジックを追加▼▼▼
     is_following = current_user.followed.filter_by(user_id=user_id).first()
 
     if is_following:
-        # 既にフォローしている場合はアンフォロー
         current_user.followed.remove(user_to_follow)
         db.session.commit()
         return jsonify({
@@ -579,14 +721,12 @@ def follow_user(user_id):
             'action': 'unfollowed', 
             'message': f'{user_to_follow.name}さんのフォローを解除しました',
             'followers_count': user_to_follow.followers.count(),
-            'following_count': current_user.followed.count() # 自身のフォロー中カウント
+            'following_count': current_user.followed.count()
         })
     else:
-        # フォローしていない場合はフォロー
         current_user.followed.append(user_to_follow)
         db.session.commit()
         
-        # フォローしたユーザー（自分自身）の情報をレスポンスに追加
         follower_info = {
             'user_id': current_user.user_id,
             'name': current_user.name,
@@ -598,16 +738,16 @@ def follow_user(user_id):
             'action': 'followed', 
             'message': f'{user_to_follow.name}さんをフォローしました',
             'followers_count': user_to_follow.followers.count(),
-            'following_count': current_user.followed.count(), # 自身のフォロー中カウント
-            'follower_info': follower_info # フォローしたユーザー（自分）の情報
+            'following_count': current_user.followed.count(),
+            'follower_info': follower_info
         })
-# ====== 🔼 修正完了 🔼 ======
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/profile/edit", methods=["GET", "POST"])
+@check_restriction # ◀️ デコレータを追加
 def edit_profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -615,11 +755,9 @@ def edit_profile():
     user = User.query.get(session["user_id"])
 
     if request.method == "POST":
-        # 自己紹介とタグをフォームから受け取って更新
         user.introduction = request.form.get("introduction")
         user.tags = request.form.get("tags")
 
-        # アイコン画像の処理
         if 'icon' in request.files:
             icon_file = request.files['icon']
             if icon_file.filename != '' and allowed_file(icon_file.filename):
@@ -627,7 +765,6 @@ def edit_profile():
                 icon_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 user.icon_path = filename
 
-        # ヘッダー画像の処理
         if 'header' in request.files:
             header_file = request.files['header']
             if header_file.filename != '' and allowed_file(header_file.filename):
@@ -646,7 +783,6 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
-#設定画面
 @app.route("/settings")
 def settings():
     if "user_id" not in session:
@@ -685,6 +821,7 @@ def change_password():
     return render_template("change_password.html")
 
 @app.route("/my_posts")
+@check_restriction # ◀️ デコレータを追加
 def my_posts():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -694,15 +831,12 @@ def my_posts():
     posts_pagination = Post.query.filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
-
     posts = posts_pagination.items
     
-    # ▼▼▼【ここから追加】▼▼▼
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
 
-        # 1. 各投稿・各絵文字のリアクション数を一括で取得
         reaction_counts = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type,
@@ -712,12 +846,10 @@ def my_posts():
             Reaction.reaction_type
         ).all()
         
-        # 扱いやすいようにデータを整形: {post_id: {emoji: count}}
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
 
-        # 2. ログインユーザーがどのリアクションをしたかを一括で取得
         user_reactions_query = db.session.query(
             Reaction.post_id,
             Reaction.reaction_type
@@ -726,14 +858,11 @@ def my_posts():
             Reaction.user_id == user_id
         ).all()
         
-        # 高速でチェックできるようにセットに変換: {(post_id, emoji)}
         user_reactions_set = set(user_reactions_query)
 
-        # 3. 各投稿オブジェクトにリアクション情報を追加
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    # ▲▲▲【ここまで追加】▲▲▲
     
     return render_template("home.html", 
                            user=session["name"], 
@@ -741,6 +870,96 @@ def my_posts():
                            pagination=posts_pagination,
                            board_title=f"{session['name']}さんの投稿一覧", 
                            current_scope="my_posts")
+
+# ====== 🔽 ここから新規・修正のルートを追加 🔽 ======
+
+# ◀️ 追加: 通報を受け付けるAPI
+@app.route("/report", methods=["POST"])
+def submit_report():
+    if "user_id" not in session:
+        return jsonify({"success": False, "message": "ログインが必要です"}), 401
+
+    data = request.get_json()
+    reason = data.get("reason")
+    post_id = data.get("post_id")
+    comment_id = data.get("comment_id")
+
+    if not reason or reason.strip() == "":
+        return jsonify({"success": False, "message": "通報理由を入力してください"}), 400
+
+    item = None
+    reported_user_id = None
+    if post_id:
+        item = Post.query.get(post_id)
+        if item: reported_user_id = item.user_id
+    elif comment_id:
+        item = Comment.query.get(comment_id)
+        if item: reported_user_id = item.user_id
+    
+    if not item:
+        return jsonify({"success": False, "message": "通報対象が見つかりませんでした"}), 404
+
+    # 自分自身を通報することはできない
+    if reported_user_id == session["user_id"]:
+        return jsonify({"success": False, "message": "自分自身の投稿やコメントは通報できません。"}), 400
+
+    report = Report(
+        reporter_id=session["user_id"],
+        reported_user_id=reported_user_id,
+        post_id=post_id,
+        comment_id=comment_id,
+        reason=reason
+    )
+    db.session.add(report)
+    db.session.commit()
+
+    return jsonify({"success": True, "message": "通報が送信されました。ご協力ありがとうございます。"})
+
+# ◀️ 追加: 管理者向けの通報管理ページ
+@app.route("/admin/reports")
+def admin_reports():
+    if session.get("role") != "admin":
+        return redirect(url_for("login"))
+    
+    # 未解決の通報を新しい順に取得
+    reports = Report.query.filter_by(is_resolved=False).order_by(Report.created_at.desc()).all()
+    return render_template("admin_reports.html", reports=reports)
+
+# ◀️ 追加: ユーザーの機能制限を切り替えるAPI
+@app.route("/admin/user/toggle_restriction/<int:user_id>", methods=["POST"])
+def toggle_user_restriction(user_id):
+    if session.get("role") != "admin":
+        return redirect(url_for("login"))
+        
+    user = User.query.get(user_id)
+    if user:
+        # 現在の状態を反転 (True -> False, False -> True)
+        user.is_restricted = not user.is_restricted
+        db.session.commit()
+        status = "制限" if user.is_restricted else "解除"
+        flash(f"ユーザー '{user.name}' のアカウントを {status} しました。", "success")
+    else:
+        flash("対象のユーザーが見つかりませんでした。", "error")
+    
+    return redirect(request.referrer or url_for('admin_reports'))
+
+# ◀️ 追加: 通報を「解決済み」としてマークするAPI
+@app.route("/admin/report/resolve/<int:report_id>", methods=["POST"])
+def resolve_report(report_id):
+    if session.get("role") != "admin":
+        return redirect(url_for("login"))
+    
+    report = Report.query.get(report_id)
+    if report:
+        report.is_resolved = True
+        db.session.commit()
+        flash(f"通報ID {report.report_id} を解決済みにしました。", "success")
+    else:
+        flash("対象の通報が見つかりませんでした。", "error")
+
+    return redirect(url_for("admin_reports"))
+
+# ====== 🔼 新規・修正のルート追加完了 🔼 ======
 
 @app.route("/admin")
 def admin_dashboard():
@@ -969,6 +1188,7 @@ def api_departments():
     return [{"department_id": d.department_id, "department_name": d.department_name} for d in departments]
 
 @app.route("/qa")
+@check_restriction # ◀️ デコレータを追加
 def qa_page():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -1085,7 +1305,9 @@ def delete_comment(comment_id):
     if not comment:
         flash("コメントが見つかりませんでした。", "error")
         return redirect(request.referrer or url_for("admin_post_management"))
-
+    
+    # ◀️ 関連する通報も削除
+    Report.query.filter_by(comment_id=comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
     flash("コメントを削除しました。", "success")
@@ -1148,7 +1370,6 @@ def toggle_reaction(post_id):
 
     db.session.commit()
 
-    # リアクション数を取得
     count = Reaction.query.filter_by(post_id=post_id, reaction_type=emoji).count()
     
     return jsonify({
@@ -1180,6 +1401,8 @@ def user_delete_comment(comment_id):
     if comment.user_id != session["user_id"] and session["role"] != "admin":
         return jsonify({"success": False, "message": "削除権限がありません"}), 403
 
+    # ◀️ 関連する通報も削除
+    Report.query.filter_by(comment_id=comment.comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
     
