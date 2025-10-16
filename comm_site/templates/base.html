@@ -53,16 +53,13 @@
             const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
             
             if (commentsDiv.classList.contains('hidden')) {
-                // コメントを表示
                 commentsDiv.classList.remove('hidden');
                 commentsDiv.classList.add('comment-slide-down');
                 arrowIcon.classList.add('rotate-180');
             } else {
-                // コメントを非表示
                 commentsDiv.classList.add('comment-slide-up');
                 arrowIcon.classList.remove('rotate-180');
                 
-                // アニメーション完了後に非表示
                 setTimeout(() => {
                     commentsDiv.classList.add('hidden');
                     commentsDiv.classList.remove('comment-slide-up');
@@ -87,7 +84,6 @@
                     const reactionButtonId = `reaction-button-${postId}-${emoji}`;
                     let button = document.getElementById(reactionButtonId);
 
-                    // リアクションが有効で、かつボタンが存在しない場合、新しいボタンを作成する
                     if (data.active && !button) {
                         const reactionsContainer = document.getElementById(`reactions-${postId}`);
                         if (reactionsContainer) {
@@ -107,21 +103,18 @@
                             newButton.appendChild(countSpan);
 
                             reactionsContainer.appendChild(newButton);
-                            button = newButton; // 作成したボタンを対象にする
+                            button = newButton;
                         }
                     }
 
-                    // カウント数とアクティブ状態を更新
                     updateReactionCount(postId, emoji, data.count);
                     toggleReactionButtonState(postId, emoji, data.active);
 
-                    // デフォルト以外の絵文字で、カウント数が0になった場合はボタンを削除
                     const defaultEmojis = ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡'];
                     if (data.count === 0 && !data.active && button && !defaultEmojis.includes(emoji)) {
                         button.remove();
                     }
 
-                    // 選択後に絵文字ピッカーを閉じる
                     const picker = document.getElementById(`emoji-picker-${postId}`);
                     if (picker && picker.classList.contains('show')) {
                         picker.classList.remove('show');
@@ -173,96 +166,31 @@
         }
 
         /* コメント折りたたみアニメーション */
-        .comment-slide-down {
-            animation: slideDown 0.3s ease-out forwards;
-        }
+        .comment-slide-down { animation: slideDown 0.3s ease-out forwards; }
+        .comment-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
 
-        .comment-slide-up {
-            animation: slideUp 0.3s ease-out forwards;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            to {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-        }
-
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: rgba(255, 255, 255, 0.95);
-            min-width: 160px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            backdrop-filter: blur(8px);
-            z-index: 1;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .dropdown-content a {
-            color: #2C3E50;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            margin: 4px;
-        }
-
-        .dropdown-content a:hover {
-            background-color: rgba(78, 205, 196, 0.1);
-            transform: translateX(5px);
-        }
-
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-
-        .user-info-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 8px 16px;
-            border-radius: 50px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            backdrop-filter: blur(8px);
-            transition: all 0.3s ease;
-        }
-
-        .user-info-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-        }
+        /* ドロップダウン */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; background-color: rgba(255, 255, 255, 0.95); min-width: 160px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); backdrop-filter: blur(8px); z-index: 1; animation: fadeIn 0.3s ease-out; }
+        .dropdown-content a { color: #2C3E50; padding: 12px 16px; text-decoration: none; display: block; transition: all 0.3s ease; border-radius: 8px; margin: 4px; }
+        .dropdown-content a:hover { background-color: rgba(78, 205, 196, 0.1); transform: translateX(5px); }
+        .dropdown:hover .dropdown-content { display: block; }
+        .user-info-container { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.8); padding: 8px 16px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(8px); transition: all 0.3s ease; }
+        .user-info-container:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .user-info-container .user-info { margin: 0; padding: 0; font-size: 0.95em; color: #2C3E50; font-weight: 500; }
         
-        .user-info-container .user-info {
-            margin: 0;
-            padding: 0;
-            font-size: 0.95em;
-            color: #2C3E50;
-            font-weight: 500;
-        }
+        /* ▼▼▼【ここから新しいCSSを追加】▼▼▼ */
+        .dm-window { position: fixed; bottom: 0; background-color: white; border-radius: 0.5rem 0.5rem 0 0; box-shadow: 0 0 20px rgba(0,0,0,0.2); width: 320px; height: 400px; display: flex; flex-direction: column; z-index: 1000; transition: height 0.3s ease; }
+        .dm-window.minimized { height: 48px; overflow: hidden; }
+        .dm-window-header { background-color: #B19CD9; color: white; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem 0.5rem 0 0; cursor: move; }
+        .dm-window-controls button { background: none; border: none; color: white; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+        .dm-messages { flex: 1; padding: 0.75rem; overflow-y: auto; }
+        .notification-dot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; background-color: #ff4757; border-radius: 50%; display: none; }
+        #conversation-panel { position: fixed; right: 0; top: 4rem; height: calc(100% - 4rem); width: 300px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 2000; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #conversation-panel.open { transform: translateX(0); }
+        /* ▲▲▲【ここまで新しいCSSを追加】▲▲▲ */
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -279,6 +207,10 @@
                 </div>
                 {% if session.name %}
                 <div class="flex items-center space-x-6">
+                    <button onclick="toggleConversationPanel(event)" class="relative p-2 rounded-full hover:bg-gray-100">
+                        <svg class="w-6 h-6 text-kawaii-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <span id="dm-notification-dot" class="notification-dot"></span>
+                    </button>
                     <div class="relative group">
                         <button class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 hover:from-kawaii-pink/20 hover:to-kawaii-purple/20 transition-all duration-300 group-hover:scale-105">
                             <span class="text-kawaii-purple font-medium">ようこそ, {{ session.name }}さん</span>
@@ -329,6 +261,14 @@
             </div>
         </div>
     </nav>
+    
+    <div id="conversation-panel">
+        <div class="p-4 border-b">
+            <h3 class="text-lg font-bold text-kawaii-dark">メッセージ</h3>
+        </div>
+        <ul id="conversation-list" class="p-2 space-y-2 overflow-y-auto" style="height: calc(100% - 60px);">
+            </ul>
+    </div>
     <main class="relative">
         <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
             <div class="absolute top-0 right-0 w-96 h-96 bg-kawaii-pink/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
@@ -343,5 +283,260 @@
         <div class="fixed bottom-4 right-4 text-4xl animate-bounce-slow opacity-50 pointer-events-none">🌟</div>
         <div class="fixed top-4 left-4 text-4xl animate-float opacity-50 pointer-events-none">🎀</div>
     </main>
-</body>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    
+    {% if session.user_id %}
+    <script>
+        const currentUserId = {{ session.user_id }};
+        const socket = io();
+
+        let unreadSenders = new Set(JSON.parse(localStorage.getItem('unreadSenders') || '[]'));
+        
+        function saveUnreadSenders() {
+            localStorage.setItem('unreadSenders', JSON.stringify(Array.from(unreadSenders)));
+        }
+        // --- 1. ウィンドウ状態管理 (localStorage) ---
+        function saveWindowStates() {
+            const states = {};
+            document.querySelectorAll('.dm-window').forEach(win => {
+                const recipientId = win.dataset.recipientId;
+                const state = win.classList.contains('minimized') ? 'minimized' : 'open';
+                states[recipientId] = {
+                    state: state,
+                    name: win.dataset.recipientName,
+                    icon_path: win.dataset.recipientIcon,
+                    top: win.style.top,
+                    left: win.style.left
+                };
+            });
+            localStorage.setItem('dmWindowStates', JSON.stringify(states));
+        }
+
+        function loadWindowStates() {
+            const states = JSON.parse(localStorage.getItem('dmWindowStates') || '{}');
+            Object.keys(states).forEach((recipientId, index) => {
+                const data = states[recipientId];
+                openDmWindow(recipientId, data.name, data.icon_path, data.state, data.top, data.left, index);
+            });
+        }
+
+        // --- 2. UI操作 ---
+        function toggleConversationPanel(event) {
+            if (event) event.preventDefault();
+            const panel = document.getElementById('conversation-panel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                document.getElementById('dm-notification-dot').style.display = 'none';
+                loadConversations();
+            }
+        }
+        
+        async function loadConversations() {
+            const response = await fetch('/api/conversations');
+            const conversations = await response.json();
+            const list = document.getElementById('conversation-list');
+            list.innerHTML = '';
+            conversations.forEach(user => {
+                const li = document.createElement('li');
+                li.id = `conversation-user-${user.user_id}`; // IDを追加
+                
+                // アイコン部分のHTMLを条件分岐で生成
+                const iconHtml = user.icon_path
+                    ? `<img src="${user.icon_path}" class="w-10 h-10 rounded-full mr-3 object-cover">`
+                    : `<div class="w-10 h-10 rounded-full mr-3 bg-gray-200 flex items-center justify-center text-xl">👤</div>`;
+
+                // 未読があるかチェック
+                const hasUnread = unreadSenders.has(user.user_id);
+
+                li.innerHTML = `
+                    <a href="#" onclick="openDmWindow(${user.user_id}, '${user.name}', '${user.icon_path || ''}'); toggleConversationPanel();" 
+                       class="flex items-center p-2 rounded-lg hover:bg-gray-100 relative">
+                        ${iconHtml}
+                        <span class="font-medium text-kawaii-dark">${user.name}</span>
+                        <span class="notification-dot" style="top: 8px; right: 8px; ${hasUnread ? 'display: block;' : ''}"></span>
+                    </a>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function openDmWindow(recipientId, recipientName, recipientIcon, initialState = 'open', top, left) {
+            recipientId = parseInt(recipientId, 10);
+
+                        // 未読リストから削除し、保存
+            unreadSenders.delete(recipientId);
+            saveUnreadSenders();
+
+            // 会話パネルの赤い点を非表示にする
+            const conversationDot = document.querySelector(`#conversation-user-${recipientId} .notification-dot`);
+            if(conversationDot) {
+                conversationDot.style.display = 'none';
+            }
+
+            if (document.getElementById(`dm-window-${recipientId}`)) {
+                const win = document.getElementById(`dm-window-${recipientId}`);
+                if (win.classList.contains('minimized')) {
+                    toggleMinimizeDmWindow(recipientId); // 最小化されていれば開く
+                }
+                return;
+            };
+
+            const dmWindow = document.createElement('div');
+            dmWindow.id = `dm-window-${recipientId}`;
+            dmWindow.className = 'dm-window';
+            dmWindow.dataset.recipientId = recipientId;
+            dmWindow.dataset.recipientName = recipientName;
+            dmWindow.dataset.recipientIcon = recipientIcon;
+
+            dmWindow.style.left = left || `${(document.querySelectorAll('.dm-window').length * 10) + 5}rem`;
+            dmWindow.style.top = top || '';
+
+            dmWindow.innerHTML = `
+                <div id="dm-header-${recipientId}" class="dm-window-header">
+                    <h3 class="font-bold">${recipientName}</h3>
+                    <div class="dm-window-controls space-x-2">
+                        <button onclick="toggleMinimizeDmWindow(${recipientId})">_</button>
+                        <button onclick="closeDmWindow(${recipientId})">&times;</button>
+                    </div>
+                </div>
+                <ul id="dm-messages-${recipientId}" class="dm-messages space-y-2"></ul>
+                <div class="p-2 border-t">
+                    <textarea id="dm-input-${recipientId}" rows="2" placeholder="メッセージを入力" class="w-full p-2 border rounded resize-none text-sm"></textarea>
+                </div>
+            `;
+
+            document.body.appendChild(dmWindow);
+            if (initialState === 'minimized') {
+                dmWindow.classList.add('minimized');
+            }
+            makeDraggable(dmWindow);
+
+            document.getElementById(`dm-input-${recipientId}`).addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendDm(recipientId);
+                }
+            });
+
+            fetch(`/api/messages/${recipientId}`).then(res => res.json()).then(messages => {
+                const messageList = document.getElementById(`dm-messages-${recipientId}`);
+                messageList.innerHTML = ''; // 履歴をクリアしてから追加
+                messages.forEach(msg => appendMessage(msg));
+                messageList.scrollTop = messageList.scrollHeight;
+            });
+            
+            saveWindowStates();
+        }
+
+        function closeDmWindow(recipientId) {
+            document.getElementById(`dm-window-${recipientId}`)?.remove();
+            saveWindowStates();
+        }
+        
+        function toggleMinimizeDmWindow(recipientId) {
+            const win = document.getElementById(`dm-window-${recipientId}`);
+            win.classList.toggle('minimized');
+            saveWindowStates();
+        }
+
+        function sendDm(recipientId) {
+            const input = document.getElementById(`dm-input-${recipientId}`);
+            if (input.value.trim()) {
+                socket.emit('send_dm', { recipient_id: recipientId, content: input.value.trim() });
+                input.value = '';
+            }
+        }
+        
+        function appendMessage(msg) {
+            const partnerId = msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id;
+            const messageList = document.getElementById(`dm-messages-${partnerId}`);
+            if (!messageList) return;
+
+            const li = document.createElement('li');
+            const isSender = msg.sender_id === currentUserId;
+            li.className = `flex ${isSender ? 'justify-end' : 'justify-start'}`;
+            li.innerHTML = `
+                <div class="max-w-xs">
+                    <div class="px-3 py-2 rounded-lg ${isSender ? 'bg-kawaii-pink text-white' : 'bg-gray-200'}">
+                        <p class="text-sm break-words">${msg.content}</p>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1 px-1 ${isSender ? 'text-right' : 'text-left'}">${msg.created_at}</div>
+                </div>
+            `;
+            messageList.appendChild(li);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // --- 3. Socket.IO イベントハンドラ ---
+        socket.on('receive_dm', (data) => {
+            const partnerId = data.sender_id === currentUserId ? data.recipient_id : data.sender_id;
+            const win = document.getElementById(`dm-window-${partnerId}`);
+            const panel = document.getElementById('conversation-panel');
+            
+            // ウィンドウが存在する場合のみメッセージを追加
+            if(win) {
+                appendMessage(data);
+            }
+
+            if (!win || win.classList.contains('minimized')) {
+                // グローバル通知ドットを表示
+                if (!panel.classList.contains('open')) {
+                    document.getElementById('dm-notification-dot').style.display = 'block';
+                }
+                
+                // 未読リストに追加して保存
+                unreadSenders.add(partnerId);
+                saveUnreadSenders();
+
+                // もし会話パネルが開いていたら、リストを再読み込みしてドットを即時反映
+                if (panel.classList.contains('open')) {
+                    loadConversations();
+                }
+            }
+            
+            // ウィンドウが開いていないか、最小化されている、かつパネルも開いていない場合に通知を表示
+            if ((!win || win.classList.contains('minimized')) && !panel.classList.contains('open')) {
+                document.getElementById('dm-notification-dot').style.display = 'block';
+            }
+        });
+
+        // --- 4. ヘルパー関数 ---
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = document.getElementById(`dm-header-${element.dataset.recipientId}`);
+            if (header) header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                saveWindowStates();
+            }
+        }
+
+        // --- 5. 初期化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWindowStates();
+        });
+    </script>
+    {% endif %}
+    </body>
 </html>

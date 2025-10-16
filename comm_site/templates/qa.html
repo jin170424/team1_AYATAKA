@@ -63,6 +63,11 @@
                     </svg>
                     <span>Q&A</span>
                 </a>
+                <a href="{{ url_for('following_board') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">❤️</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
+                </a>
                 {% endif %}
             </nav>
         </div>

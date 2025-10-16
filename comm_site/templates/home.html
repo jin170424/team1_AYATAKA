@@ -109,19 +109,20 @@
                         post.content }}</p>
 
                     <div class="mt-4">
-                        <!-- リアクション表示エリア -->
                         <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
+<<<<<<< HEAD
 
                             {# --- 描画するリアクションを動的に準備 --- #}
                             {# 1. 表示する絵文字の辞書を準備 #}
+=======
+                            
+>>>>>>> origin/main2
                             {% set display_reactions = {} %}
 
-                            {# 3. サーバーから渡された実際のリアクション情報で上書き（新しい絵文字もここに含まれる） #}
                             {% if display_reactions.update(post.reaction_counts) %}{% endif %}
-                            {# --- 準備完了 --- #}
 
-                            {# --- 準備した辞書を元にボタンを描画 --- #}
                             {% for emoji, count in display_reactions.items() %}
+<<<<<<< HEAD
                             {# デフォルトの絵文字、またはカウントが1以上の絵文字のみ表示する #}
                             {% if count > 0 %}
                             <button class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
@@ -132,17 +133,26 @@
                                     }}</span>
                             </button>
                             {% endif %}
+=======
+                                {% if count > 0 %}
+                                    <button 
+                                        class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
+                                        onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')" 
+                                        id="reaction-button-{{ post.post_id }}-{{ emoji }}">
+                                        <span class="reaction-emoji">{{ emoji }}</span>
+                                        <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count }}</span>
+                                    </button>
+                                {% endif %}
+>>>>>>> origin/main2
                             {% endfor %}
                         </div>
 
-                        <!-- 新しいリアクション追加ボタン -->
                         <button class="text-sm text-kawaii-dark hover:text-kawaii-pink flex items-center gap-2"
                             onclick="showEmojiPicker({{ post.post_id }})">
                             <span>😀</span>
                             <span>リアクションを追加</span>
                         </button>
 
-                        <!-- 絵文字ピッカー -->
                         <div class="reaction-emoji-picker mt-2" id="emoji-picker-{{ post.post_id }}">
                             {% for emoji in ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡','😄', '🥰','💪', '🙏', '🔥'] %}
                             <span class="reaction-emoji" onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')">{{
@@ -211,7 +221,6 @@
                     </div>
                 </div>
 
-                {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                 <div class="mt-2 flex items-center space-x-4">
                     {% if session["user_id"] == post.user_id %}
                     <button onclick="editPost({{ post.post_id }})"
@@ -220,14 +229,22 @@
                         <span class="text-sm font-medium">編集</span>
                     </button>
                     {% endif %}
+                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                     <button onclick="deletePost({{ post.post_id }})"
                         class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
                         <span class="text-sm">🗑️</span>
                         <span class="text-sm font-medium">削除</span>
                     </button>
+                    {% endif %}
+                    
+                    {% if session["user_id"] != post.user_id and session["role"] != "admin" %}
+                    <button onclick="report('post', {{ post.post_id }})"
+                        class="text-gray-500 hover:text-red-600 transition duration-200 flex items-center space-x-1">
+                        <span class="text-sm">🚩</span>
+                        <span class="text-sm font-medium">通報</span>
+                    </button>
+                    {% endif %}
                 </div>
-                {% endif %}
-
                 <div class="mt-4">
                     {% if post.comments %}
                     <button onclick="toggleComments('comments-{{ post.post_id }}')"
@@ -255,19 +272,28 @@
                                     <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{
                                         comment.content }}</span>
                                 </div>
-                                {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
                                 <div class="flex space-x-2 ml-2">
+                                    {% if session["user_id"] == comment.user_id %}
                                     <button onclick="editComment({{ comment.comment_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         ✏️ 編集
                                     </button>
+                                    {% endif %}
+                                    {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
                                     <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         🗑️ 削除
                                     </button>
+                                    {% endif %}
+                                    
+                                    {% if session["user_id"] != comment.user_id and session["role"] != "admin" %}
+                                    <button onclick="report('comment', {{ comment.comment_id }})"
+                                        class="text-xs text-gray-500 hover:text-red-600 transition duration-200">
+                                        🚩 通報
+                                    </button>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
-                            </div>
+                                </div>
                             <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
                             </div>
 
@@ -356,25 +382,145 @@
             </div>
             {% endif %}
         </div>
-
     </div>
 </div>
 
+<div id="reportModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md transform transition-all">
+        <h3 class="text-xl font-bold text-kawaii-dark mb-4">通報</h3>
+        <form id="reportForm">
+            <p class="text-sm text-kawaii-dark/80 mb-3">通報理由のカテゴリを選択してください。</p>
+            <div class="space-y-2 mb-4">
+                <div>
+                    <input type="radio" id="reason_sexual" name="report_reason_category" value="性的な内容" class="form-radio text-kawaii-pink focus:ring-kawaii-pink" checked>
+                    <label for="reason_sexual" class="ml-2 text-kawaii-dark">性的な内容</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_violent" name="report_reason_category" value="暴力的または不快な内容" class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_violent" class="ml-2 text-kawaii-dark">暴力的または不快な内容</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_spam" name="report_reason_category" value="スパムまたは誤解を招く情報" class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_spam" class="ml-2 text-kawaii-dark">スパムまたは誤解を招く情報</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_hateful" name="report_reason_category" value="差別的または攻撃的な内容" class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_hateful" class="ml-2 text-kawaii-dark">差別的または攻撃的な内容</label>
+                </div>
+                 <div>
+                    <input type="radio" id="reason_other" name="report_reason_category" value="その他" class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_other" class="ml-2 text-kawaii-dark">その他</label>
+                </div>
+            </div>
+            <label for="reportDetails" class="block text-sm font-medium text-kawaii-dark/80 mb-2">具体的な内容</label>
+            <textarea id="reportDetails" rows="4" placeholder="問題となっている箇所の詳細を具体的に入力してください。" required class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" id="cancelReport" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-300 transition duration-200">
+                    キャンセル
+                </button>
+                <button type="submit" class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200">
+                    通報する
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-    // 既存のJavaScriptは省略...
     function toggleMenu() {
         const menu = document.getElementById('sideMenu');
         menu.classList.toggle('-translate-x-full');
     }
 
-    // 初期状態でメニューを閉じる
+    // ▼▼▼ ここから既存のDOMContentLoadedとreport関数を置き換える ▼▼▼
+    let reportInfo = { type: null, id: null };
+
     document.addEventListener('DOMContentLoaded', function () {
+        // 既存のサイドメニューの処理
         const menu = document.getElementById('sideMenu');
-        if (!menu.classList.contains('-translate-x-full')) {
+        if (menu && !menu.classList.contains('-translate-x-full')) {
             menu.classList.add('-translate-x-full');
         }
+
+        // 新しいモーダルの処理を追加
+        const modal = document.getElementById('reportModal');
+        const reportForm = document.getElementById('reportForm');
+        const cancelButton = document.getElementById('cancelReport');
+
+        if(modal) {
+            // キャンセルボタンの処理
+            cancelButton.addEventListener('click', function() {
+                modal.classList.add('hidden');
+            });
+
+            // モーダルの外側をクリックしたときの処理
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+
+            // フォーム送信の処理
+            reportForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // デフォルトのフォーム送信をキャンセル
+
+                const selectedCategory = document.querySelector('input[name="report_reason_category"]:checked').value;
+                const details = document.getElementById('reportDetails').value;
+
+                if (!details || details.trim() === "") {
+                    showMessage("具体的な内容を入力してください。", 'error');
+                    return;
+                }
+
+                // カテゴリと詳細を組み合わせて1つの理由文字列を作成
+                const reason = `カテゴリ: ${selectedCategory}\n詳細: ${details.trim()}`;
+
+                const payload = { 
+                    reason: reason,
+                    post_id: reportInfo.type === 'post' ? reportInfo.id : null,
+                    comment_id: reportInfo.type === 'comment' ? reportInfo.id : null
+                };
+
+                fetch('/report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showMessage(data.message, data.success ? 'success' : 'error');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('通報中にエラーが発生しました。', 'error');
+                });
+                
+                // モーダルを閉じる
+                modal.classList.add('hidden');
+            });
+        }
     });
+
+    function report(type, id) {
+        // 通報対象の情報を保存
+        reportInfo = { type: type, id: id };
+        
+        // フォームをリセット
+        const reportForm = document.getElementById('reportForm');
+        if (reportForm) {
+            reportForm.reset();
+            document.getElementById('reportDetails').value = '';
+        }
+
+        // モーダルを表示
+        const modal = document.getElementById('reportModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    // ▲▲▲ 置き換え完了 ▲▲▲
 
     function toggleComments(commentsId) {
         const commentsDiv = document.getElementById(commentsId);
@@ -389,7 +535,6 @@
         }
     }
 
-    // 投稿削除機能
     function deletePost(postId) {
         if (!confirm('本当に削除しますか？')) {
             return;
@@ -404,7 +549,6 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 投稿要素を削除
                     const postElement = document.getElementById(`post-${postId}`);
                     if (postElement) {
                         postElement.remove();
@@ -420,27 +564,22 @@
             });
     }
 
-    // 投稿編集フォームを表示
     function editPost(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
 
-        // 投稿内容を非表示にし、編集フォームを表示
         postContent.classList.add('hidden');
         editForm.classList.remove('hidden');
     }
 
-    // 投稿編集をキャンセル
     function cancelPostEdit(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
 
-        // 編集フォームを非表示にし、投稿内容を表示
         editForm.classList.add('hidden');
         postContent.classList.remove('hidden');
     }
 
-    // 投稿の編集内容を保存
     function savePostEdit(postId) {
         const editTextarea = document.getElementById('edit-textarea-post-' + postId);
         const newContent = editTextarea.value.trim();
@@ -460,11 +599,8 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 投稿内容を更新
                     const postContent = document.getElementById('post-content-' + postId);
                     postContent.textContent = data.content;
-
-                    // 編集フォームを閉じる
                     cancelPostEdit(postId);
                     showMessage(data.message, 'success');
                 } else {
@@ -477,7 +613,6 @@
             });
     }
 
-    // コメント削除機能
     function deleteComment(commentId, postId) {
         if (!confirm('本当に削除しますか？')) {
             return;
@@ -492,13 +627,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // コメント要素を削除
                     const commentElement = document.getElementById(`comment-${commentId}`);
                     if (commentElement) {
                         commentElement.remove();
                     }
-
-                    // コメント数を更新
                     updateCommentCount(postId);
                     showMessage(data.message, 'success');
                 } else {
@@ -511,17 +643,13 @@
             });
     }
 
-    // コメント編集機能
     function editComment(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
 
-        // 編集フォームを表示
         editForm.classList.remove('hidden');
-        // コメント内容を非表示
         commentContent.style.display = 'none';
-        // テキストエリアに現在の内容を設定
         editTextarea.value = commentContent.textContent;
     }
 
@@ -529,13 +657,10 @@
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
 
-        // 編集フォームを非表示
         editForm.classList.add('hidden');
-        // コメント内容を表示
         commentContent.style.display = 'inline';
     }
 
-    // コメント保存機能
     function saveCommentEdit(commentId) {
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
         const newContent = editTextarea.value.trim();
@@ -555,11 +680,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // コメント内容を更新
                     const commentContent = document.getElementById('comment-content-' + commentId);
                     commentContent.textContent = data.content;
 
-                    // 編集フォームを非表示
                     cancelEdit(commentId);
                     showMessage(data.message, 'success');
                 } else {
@@ -572,7 +695,6 @@
             });
     }
 
-    // コメント追加機能
     function addComment(postId) {
         const textarea = document.getElementById(`comment-textarea-${postId}`);
         const content = textarea.value.trim();
@@ -592,15 +714,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // テキストエリアをクリア
                     textarea.value = '';
-
-                    // 新しいコメントを追加
                     addCommentToDOM(postId, data.comment);
-
-                    // コメント数を更新
                     updateCommentCount(postId);
-
                     showMessage(data.message, 'success');
                 } else {
                     showMessage(data.message, 'error');
@@ -612,17 +728,14 @@
             });
     }
 
-    // 新しいコメントをDOMに追加
     function addCommentToDOM(postId, commentData) {
         let commentsContainer = document.getElementById(`comments-${postId}`);
 
         if (!commentsContainer) {
-            // コメントセクションが存在しない場合は作成
             createCommentsSection(postId);
             commentsContainer = document.getElementById(`comments-${postId}`);
         }
 
-        // 新しいコメント要素を作成
         const commentElement = document.createElement('div');
         commentElement.className = 'flex flex-col';
         commentElement.id = `comment-${commentData.comment_id}`;
@@ -662,17 +775,13 @@
             </div>
         `;
 
-        // コメントを追加
         commentsContainer.appendChild(commentElement);
 
-        // トグルボタンを表示（コメントが存在する場合）
         const toggleButton = commentsContainer.previousElementSibling;
         if (toggleButton) {
             toggleButton.style.display = 'flex';
         }
 
-        // 新しくコメントを追加した場合は自動的に展開表示
-        // ただし、既にコメントセクションが存在する場合は現在の状態を維持
         if (commentsContainer.classList.contains('hidden')) {
             commentsContainer.classList.remove('hidden');
             const arrowIcon = document.getElementById(`arrow-${postId}`);
@@ -682,24 +791,18 @@
         }
     }
 
-    // コメントセクションを作成（初回コメント時）
     function createCommentsSection(postId) {
         const postElement = document.getElementById(`post-${postId}`);
         const commentForm = postElement.querySelector('.mt-2');
 
-        // コメントセクションを作成
         const commentsSection = document.createElement('div');
         commentsSection.id = `comments-${postId}`;
         commentsSection.className = 'mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4';
-
-        // コメントセクションをコメントフォームの前に挿入
         commentForm.parentNode.insertBefore(commentsSection, commentForm);
 
-        // トグルボタンを作成
         const toggleButton = document.createElement('button');
         toggleButton.className = 'w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200';
         toggleButton.onclick = () => toggleComments(`comments-${postId}`);
-
         toggleButton.innerHTML = `
             <span class="text-sm text-kawaii-dark flex items-center space-x-2">
                 <span class="text-kawaii-purple">💬</span>
@@ -709,12 +812,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
         `;
-
-        // トグルボタンをコメントセクションの前に挿入
         commentsSection.parentNode.insertBefore(toggleButton, commentsSection);
     }
 
-    // コメント数を更新
     function updateCommentCount(postId) {
         const commentsContainer = document.getElementById(`comments-${postId}`);
         const commentCountElement = document.getElementById(`comment-count-${postId}`);
@@ -725,7 +825,6 @@
         }
     }
 
-    // メッセージ表示機能
     function showMessage(message, type) {
         const existingMessage = document.querySelector('.message-toast');
         if (existingMessage) {
@@ -757,6 +856,7 @@
             }, 300);
         }, 3000);
     }
+<<<<<<< HEAD
     // スタンプパレットの表示・非表示
     function toggleStampPicker() {
         const picker = document.getElementById('stamp-picker');
@@ -812,5 +912,9 @@
     }
 
 
+=======
+
+    
+>>>>>>> origin/main2
 </script>
 {% endblock %}
