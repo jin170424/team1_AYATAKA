@@ -110,30 +110,12 @@
 
                     <div class="mt-4">
                         <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
-<<<<<<< HEAD
-
-                            {# --- 描画するリアクションを動的に準備 --- #}
-                            {# 1. 表示する絵文字の辞書を準備 #}
-=======
                             
->>>>>>> origin/main2
                             {% set display_reactions = {} %}
 
                             {% if display_reactions.update(post.reaction_counts) %}{% endif %}
 
                             {% for emoji, count in display_reactions.items() %}
-<<<<<<< HEAD
-                            {# デフォルトの絵文字、またはカウントが1以上の絵文字のみ表示する #}
-                            {% if count > 0 %}
-                            <button class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
-                                onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')"
-                                id="reaction-button-{{ post.post_id }}-{{ emoji }}">
-                                <span class="reaction-emoji">{{ emoji }}</span>
-                                <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count
-                                    }}</span>
-                            </button>
-                            {% endif %}
-=======
                                 {% if count > 0 %}
                                     <button 
                                         class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
@@ -143,7 +125,6 @@
                                         <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count }}</span>
                                     </button>
                                 {% endif %}
->>>>>>> origin/main2
                             {% endfor %}
                         </div>
 
@@ -856,65 +837,7 @@
             }, 300);
         }, 3000);
     }
-<<<<<<< HEAD
-    // スタンプパレットの表示・非表示
-    function toggleStampPicker() {
-        const picker = document.getElementById('stamp-picker');
-        picker.classList.toggle('hidden');
-    }
-
-    // テキストエリアに絵文字を挿入
-    function addEmojiToPost(emoji) {
-        const textarea = document.getElementById('post-content');
-        const startPos = textarea.selectionStart;
-        const endPos = textarea.selectionEnd;
-        const text = textarea.value;
-
-        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
-        textarea.focus();
-        textarea.selectionEnd = startPos + emoji.length;
-    }
-
-    // コメント用スタンプパレット表示/非表示
-    function toggleCommentStampPicker(postId) {
-        const picker = document.getElementById(`comment-stamp-picker-${postId}`);
-        picker.classList.toggle('hidden');
-    }
-
-    // コメント用テキストエリアに絵文字を挿入
-    function addEmojiToComment(postId, emoji) {
-        const textarea = document.getElementById(`comment-textarea-${postId}`);
-        const startPos = textarea.selectionStart;
-        const endPos = textarea.selectionEnd;
-        const text = textarea.value;
-
-        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
-        textarea.focus();
-        textarea.selectionEnd = startPos + emoji.length;
-    }
-
-    // 編集用スタンプパレットの表示/非表示
-    function toggleEditStampPicker(postId) {
-        const picker = document.getElementById(`edit-stamp-picker-${postId}`);
-        picker.classList.toggle('hidden');
-    }
-
-    // 編集用テキストエリアに絵文字を挿入
-    function addEmojiToEdit(postId, emoji) {
-        const textarea = document.getElementById(`edit-textarea-post-${postId}`);
-        const startPos = textarea.selectionStart;
-        const endPos = textarea.selectionEnd;
-        const text = textarea.value;
-
-        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
-        textarea.focus();
-        textarea.selectionEnd = startPos + emoji.length;
-    }
-
-
-=======
 
     
->>>>>>> origin/main2
 </script>
 {% endblock %}
