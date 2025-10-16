@@ -40,6 +40,13 @@ follow = db.Table('follow',
 )
 # ====== 🔼 追加完了 🔼 ======
 
+# ====== 🔽 追加: ブロック関係を定義する中間テーブル 🔽 ======
+blocks = db.Table('blocks',
+    db.Column('blocker_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True),
+    db.Column('blocked_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+)
+# ====== 🔼 追加完了 🔼 ======
+
 # ====== 🔽 モデルの修正・追加 🔽 ======
 class User(db.Model):
     __tablename__ = "User"
@@ -73,6 +80,14 @@ class User(db.Model):
         primaryjoin=(follow.c.follower_id == user_id),
         secondaryjoin=(follow.c.followed_id == user_id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    # ====== 🔼 追加完了 🔼 ======
+
+    # ====== 🔽 追加: ブロック機能のためのリレーションシップ 🔽 ======
+    blocked_users = db.relationship(
+        'User', secondary=blocks,
+        primaryjoin=(blocks.c.blocker_id == user_id),
+        secondaryjoin=(blocks.c.blocked_id == user_id),
+        backref=db.backref('blocked_by', lazy='dynamic'), lazy='dynamic')
     # ====== 🔼 追加完了 🔼 ======
 
 # ◀️ 追加: 通報情報を格納するモデル
@@ -163,6 +178,23 @@ class QA(db.Model):
     answered_at = db.Column(db.DateTime)
 
     user = db.relationship("User", backref="questions")
+
+# ====== 🔽 ブロックリスト取得のヘルパー関数 🔽 ======
+def get_blocked_user_ids():
+    """現在ログイン中のユーザーがブロックしている、またはされているユーザーIDのリストを返す"""
+    if "user_id" not in session:
+        return []
+    
+    current_user = User.query.get(session["user_id"])
+    if not current_user:
+        return []
+        
+    blocked_ids = {u.user_id for u in current_user.blocked_users}
+    blocked_by_ids = {u.user_id for u in current_user.blocked_by}
+    
+    return list(blocked_ids.union(blocked_by_ids))
+# ====== 🔼 追加完了 🔼 ======
+
 
 # ====== 🔽 追加: 機能制限チェック用のデコレータ 🔽 ======
 def check_restriction(f):
@@ -364,9 +396,17 @@ def school_wide_board():
     if "role" in session and session["role"] == "student":
         page = request.args.get('page', 1, type=int)
         
-        posts_pagination = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).paginate(
+        # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
+        blocked_ids = get_blocked_user_ids()
+        posts_query = Post.query.filter_by(scope="public")
+        if blocked_ids:
+            posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
+        
+        posts_pagination = posts_query.order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
+        # 🔼 変更完了
+
         posts = posts_pagination.items
 
         if posts:
@@ -416,14 +456,21 @@ def school_specific_board():
         user_school_id = session.get("school_id")
         if user_school_id is None:
             return redirect(url_for("login"))
-
-        school_scope = f"school{user_school_id}"
         
+        # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
+        blocked_ids = get_blocked_user_ids()
+        school_scope = f"school{user_school_id}"
+        posts_query = Post.query.filter_by(scope=school_scope)
+        if blocked_ids:
+            posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
+
         page = request.args.get('page', 1, type=int)
 
-        posts_pagination = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).paginate(
+        posts_pagination = posts_query.order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
+        # 🔼 変更完了
+
         posts = posts_pagination.items
     
         if posts:
@@ -676,6 +723,13 @@ def profile_view(user_id):
 
     viewed_user_id = user_id if user_id is not None else session["user_id"]
     
+    # 🔽 変更: ブロック関係のチェック
+    blocked_ids = get_blocked_user_ids()
+    if viewed_user_id in blocked_ids and viewed_user_id != session["user_id"]:
+        flash("このユーザーのプロフィールを表示できません。", "error")
+        return redirect(request.referrer or url_for("home"))
+    # 🔼 変更完了
+
     user = User.query.get(viewed_user_id)
 
     if not user:
@@ -689,10 +743,18 @@ def profile_view(user_id):
         current_user = User.query.get(session["user_id"])
         is_following = current_user.followed.filter_by(user_id=user.user_id).first() is not None
 
+    # 🔽 追加: ブロック状態の確認
+    is_blocking = False
+    if "user_id" in session and not is_own_profile:
+        current_user = User.query.get(session["user_id"])
+        is_blocking = current_user.blocked_users.filter_by(user_id=user.user_id).first() is not None
+    # 🔼 追加完了
+
     return render_template("profile.html", 
                            user=user, 
                            is_own_profile=is_own_profile,
                            is_following=is_following,
+                           is_blocking=is_blocking, # ◀️ テンプレートに変数を渡す
                            current_user_id=session["user_id"])
 
 
@@ -741,6 +803,51 @@ def follow_user(user_id):
             'following_count': current_user.followed.count(),
             'follower_info': follower_info
         })
+
+# ====== 🔽 ここからがブロック機能のコードです。この位置に配置してください。 🔽 ======
+@app.route('/block/<int:user_id>', methods=['POST'])
+@check_restriction
+def block_user(user_id):
+    if "user_id" not in session:
+        return jsonify({'success': False, 'message': 'ログインが必要です'}), 401
+
+    user_to_block = User.query.get(user_id)
+    current_user = User.query.get(session['user_id'])
+
+    if not user_to_block:
+        return jsonify({'success': False, 'message': 'ユーザーが見つかりません'}), 404
+    
+    if user_to_block.user_id == current_user.user_id:
+        return jsonify({'success': False, 'message': '自分自身をブロックすることはできません'}), 400
+
+    is_blocking = current_user.blocked_users.filter_by(user_id=user_id).first()
+
+    if is_blocking:
+        # ブロック解除
+        current_user.blocked_users.remove(user_to_block)
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'action': 'unblocked', 
+            'message': f'{user_to_block.name}さんのブロックを解除しました',
+        })
+    else:
+        # ブロック実行
+        current_user.blocked_users.append(user_to_block)
+        
+        # フォロー関係を双方向で解除
+        if current_user.followed.filter_by(user_id=user_id).first():
+            current_user.followed.remove(user_to_block)
+        if user_to_block.followed.filter_by(user_id=current_user.user_id).first():
+            user_to_block.followed.remove(current_user)
+            
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'action': 'blocked', 
+            'message': f'{user_to_block.name}さんをブロックしました',
+        })
+# ====== 🔼 ブロック機能のコードはここまでです 🔼 ======
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -819,6 +926,17 @@ def change_password():
         return redirect(url_for("settings"))
 
     return render_template("change_password.html")
+
+@app.route("/settings/block_list")
+@check_restriction
+def block_list():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    blocked_users = user.blocked_users.all()
+
+    return render_template("block_list.html", blocked_users=blocked_users)
 
 @app.route("/my_posts")
 @check_restriction # ◀️ デコレータを追加
@@ -1450,6 +1568,9 @@ def edit_post(post_id):
     
     return jsonify({"success": True, "message": "投稿を更新しました", "content": new_content})
 
+# ！！！！！！注意！！！！！！
+# この if __name__ == "__main__": ブロックより上に
+# @app.route(...) を定義してください。
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
