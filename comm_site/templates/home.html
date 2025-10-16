@@ -50,7 +50,7 @@
                     <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
                 </a>
             </nav>
-            </div>
+        </div>
     </div>
 
     <div class="max-w-4xl mx-auto px-4 py-8">
@@ -68,12 +68,28 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' and current_scope != 'following' %}
+        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' and
+        current_scope != 'following' %}
         <div class="max-w-2xl mx-auto mb-8">
             <form action="{{ url_for('submit_post') }}" method="POST"
                 class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
-                <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required
+                <textarea name="content" id="post-content" rows="4" placeholder="投稿内容を入力してください" required
                     class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
+
+                <!-- スタンプ表示ボタン -->
+                <button type="button" onclick="toggleStampPicker()"
+                    class="mt-2 px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
+                    😄 スタンプ
+                </button>
+
+                <!-- スタンプパレット（最初は非表示） -->
+                <div id="stamp-picker" class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                    {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                    <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
+                        onclick="addEmojiToPost('{{ emoji }}')">{{ emoji }}</span>
+                    {% endfor %}
+                </div>
+
                 <input type="hidden" name="scope" value="{{ current_scope }}">
                 <button type="submit"
                     class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto">
@@ -95,7 +111,7 @@
                     <div class="mt-4">
                         <!-- リアクション表示エリア -->
                         <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
-                            
+
                             {# --- 描画するリアクションを動的に準備 --- #}
                             {# 1. 表示する絵文字の辞書を準備 #}
                             {% set display_reactions = {} %}
@@ -106,16 +122,16 @@
 
                             {# --- 準備した辞書を元にボタンを描画 --- #}
                             {% for emoji, count in display_reactions.items() %}
-                                {# デフォルトの絵文字、またはカウントが1以上の絵文字のみ表示する #}
-                                {% if count > 0 %}
-                                    <button 
-                                        class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
-                                        onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')" 
-                                        id="reaction-button-{{ post.post_id }}-{{ emoji }}">
-                                        <span class="reaction-emoji">{{ emoji }}</span>
-                                        <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count }}</span>
-                                    </button>
-                                {% endif %}
+                            {# デフォルトの絵文字、またはカウントが1以上の絵文字のみ表示する #}
+                            {% if count > 0 %}
+                            <button class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
+                                onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')"
+                                id="reaction-button-{{ post.post_id }}-{{ emoji }}">
+                                <span class="reaction-emoji">{{ emoji }}</span>
+                                <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count
+                                    }}</span>
+                            </button>
+                            {% endif %}
                             {% endfor %}
                         </div>
 
@@ -139,6 +155,22 @@
                         <textarea rows="4" required
                             class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"
                             id="edit-textarea-post-{{ post.post_id }}">{{ post.content }}</textarea>
+
+                        <!-- スタンプボタン -->
+                        <div class="flex items-center mt-2">
+                            <button type="button" onclick="toggleEditStampPicker({{ post.post_id }})"
+                                class="px-2 py-1 bg-gray-100 rounded-lg shadow-sm hover:bg-gray-200 text-sm">😄</button>
+                        </div>
+
+                        <!-- 編集用スタンプパレット -->
+                        <div id="edit-stamp-picker-{{ post.post_id }}"
+                            class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                            {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                            <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
+                                onclick="addEmojiToEdit({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                            {% endfor %}
+                        </div>
+
                         <div class="flex justify-end space-x-2 mt-2">
                             <button type="button" onclick="savePostEdit({{ post.post_id }})"
                                 class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
@@ -151,14 +183,19 @@
                         </div>
                     </div>
 
+
                     <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
-                        <a href="{{ url_for('profile_view', user_id=post.author.user_id) if post.author else '#' }}" class="flex items-center space-x-2 group">
+                        <a href="{{ url_for('profile_view', user_id=post.author.user_id) if post.author else '#' }}"
+                            class="flex items-center space-x-2 group">
                             {% if post.author and post.author.icon_path %}
-                                <img src="{{ url_for('uploaded_file', filename=post.author.icon_path) }}" alt="{{ post.author.name }}のアイコン" class="w-8 h-8 rounded-full object-cover border border-gray-200 group-hover:opacity-80 transition-opacity">
+                            <img src="{{ url_for('uploaded_file', filename=post.author.icon_path) }}"
+                                alt="{{ post.author.name }}のアイコン"
+                                class="w-8 h-8 rounded-full object-cover border border-gray-200 group-hover:opacity-80 transition-opacity">
                             {% else %}
-                                <div class="w-8 h-8 rounded-full bg-gray-300 border border-gray-200 flex items-center justify-center group-hover:opacity-80 transition-opacity">
-                                    <span class="text-lg">👤</span>
-                                </div>
+                            <div
+                                class="w-8 h-8 rounded-full bg-gray-300 border border-gray-200 flex items-center justify-center group-hover:opacity-80 transition-opacity">
+                                <span class="text-lg">👤</span>
+                            </div>
                             {% endif %}
                             <span class="group-hover:text-kawaii-pink transition-colors">
                                 {{ post.author.name if post.author else '不明' }}
@@ -211,10 +248,12 @@
                         <div class="flex flex-col" id="comment-{{ comment.comment_id }}">
                             <div class="flex justify-between items-start">
                                 <div class="flex space-x-2 flex-grow">
-                                    <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}" class="text-kawaii-purple font-medium hover:underline">
+                                    <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}"
+                                        class="text-kawaii-purple font-medium hover:underline">
                                         {{ comment.user.name if comment.user else "不明" }}
                                     </a>
-                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{ comment.content }}</span>
+                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{
+                                        comment.content }}</span>
                                 </div>
                                 {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
                                 <div class="flex space-x-2 ml-2">
@@ -257,11 +296,28 @@
                         <div class="flex space-x-2">
                             <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く" required
                                 class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
+
+                            <!-- コメント用スタンプボタン -->
+                            <button type="button" onclick="toggleCommentStampPicker({{ post.post_id }})"
+                                class="px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
+                                😄
+                            </button>
+
                             <button type="button" onclick="addComment({{ post.post_id }})"
                                 class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 💭
                             </button>
                         </div>
+
+                        <!-- コメント用スタンプパレット -->
+                        <div id="comment-stamp-picker-{{ post.post_id }}"
+                            class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                            {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                            <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
+                                onclick="addEmojiToComment({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                            {% endfor %}
+                        </div>
+
                     </div>
                     {% endif %}
                 </div>
@@ -701,5 +757,60 @@
             }, 300);
         }, 3000);
     }
+    // スタンプパレットの表示・非表示
+    function toggleStampPicker() {
+        const picker = document.getElementById('stamp-picker');
+        picker.classList.toggle('hidden');
+    }
+
+    // テキストエリアに絵文字を挿入
+    function addEmojiToPost(emoji) {
+        const textarea = document.getElementById('post-content');
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+
+    // コメント用スタンプパレット表示/非表示
+    function toggleCommentStampPicker(postId) {
+        const picker = document.getElementById(`comment-stamp-picker-${postId}`);
+        picker.classList.toggle('hidden');
+    }
+
+    // コメント用テキストエリアに絵文字を挿入
+    function addEmojiToComment(postId, emoji) {
+        const textarea = document.getElementById(`comment-textarea-${postId}`);
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+
+    // 編集用スタンプパレットの表示/非表示
+    function toggleEditStampPicker(postId) {
+        const picker = document.getElementById(`edit-stamp-picker-${postId}`);
+        picker.classList.toggle('hidden');
+    }
+
+    // 編集用テキストエリアに絵文字を挿入
+    function addEmojiToEdit(postId, emoji) {
+        const textarea = document.getElementById(`edit-textarea-post-${postId}`);
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+
+
 </script>
 {% endblock %}
