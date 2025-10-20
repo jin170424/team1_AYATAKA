@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-16 text-center">
+    <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl p-12">
+        <div class="text-6xl mb-6">🚫</div>
+        <h2 class="text-2xl font-bold text-kawaii-dark mb-4">
+            プロフィールを表示できません
+        </h2>
+        <p class="text-gray-600">
+            <strong>{{ user_name }}</strong>さんをブロックしている、またはされているため、プロフィールの閲覧およびダイレクトメッセージの送信はできません。
+        </p>
+        <div class="mt-8">
+            <a href="{{ url_for('home') }}" class="inline-block bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">
+                ホーム画面に戻る
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
