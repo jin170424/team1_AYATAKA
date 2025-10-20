@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-md p-8 border border-kawaii-lavender">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold text-kawaii-dark">ブロック中のユーザー管理</h2>
+            <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
+        </div>
+
+        <div id="block-list-container" class="space-y-3">
+            {% if blocked_users %}
+                {% for blocked_user in blocked_users %}
+                <div id="blocked-user-{{ blocked_user.user_id }}" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                    <a href="{{ url_for('profile_view', user_id=blocked_user.user_id) }}" class="flex items-center space-x-3 group">
+                        {% if blocked_user.icon_path %}
+                            <img src="{{ url_for('uploaded_file', filename=blocked_user.icon_path) }}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">
+                        {% else %}
+                            <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>
+                        {% endif %}
+                        <span class="text-kawaii-purple font-medium group-hover:underline">{{ blocked_user.name }}</span>
+                    </a>
+                    <button onclick="unblockUser({{ blocked_user.user_id }})" 
+                            class="bg-red-500 text-white font-bold py-1 px-4 rounded-full hover:bg-red-600 transition-colors text-sm">
+                        ブロック解除
+                    </button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p id="no-blocked-users" class="text-center text-gray-500 py-4">現在ブロックしているユーザーはいません。</p>
+            {% endif %}
+        </div>
+        <div class="text-center mt-8">
+             <a href="{{ url_for('settings') }}" class="text-sm text-kawaii-purple hover:underline">← 設定に戻る</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function unblockUser(userId) {
+    if (!confirm('本当にブロックを解除しますか？')) {
+        return;
+    }
+
+    fetch(`/block/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.action === 'unblocked') {
+            // UIから該当ユーザーを削除
+            const userElement = document.getElementById(`blocked-user-${userId}`);
+            if (userElement) {
+                userElement.remove();
+            }
+            
+            // 全員解除されたかチェック
+            const container = document.getElementById('block-list-container');
+            if (container.children.length === 0) {
+                const noUsersMessage = document.createElement('p');
+                noUsersMessage.id = 'no-blocked-users';
+                noUsersMessage.className = 'text-center text-gray-500 py-4';
+                noUsersMessage.textContent = '現在ブロックしているユーザーはいません。';
+                container.appendChild(noUsersMessage);
+            }
+            
+            // 成功メッセージなどを表示する場合はここに追加
+            // 例: showMessage(data.message, 'success');
+            
+        } else {
+            alert(data.message || 'ブロック解除に失敗しました。');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('処理中にエラーが発生しました。');
+    });
+}
+</script>
+{% endblock %}
