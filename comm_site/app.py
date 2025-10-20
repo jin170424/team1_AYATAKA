@@ -402,6 +402,7 @@ def login():
         error = "ユーザー名またはパスワードが違います"
         return render_template("login.html", error=error, username=student_id)
 
+
     return render_template("login.html")
 
 @app.route("/home")
