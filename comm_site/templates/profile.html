@@ -63,23 +63,29 @@
         </div>
         
         {% if not is_own_profile %}
-        <div class="text-center mt-8">
+        <div class="text-center mt-8 space-x-2" id="user-action-buttons">
             <button id="follow-btn" onclick="toggleFollow({{ user.user_id }})" 
                     class="inline-block font-bold py-2 px-6 rounded-full transition-colors
                            {% if is_following %}
                            bg-gray-200 text-gray-700 hover:bg-gray-300
                            {% else %}
                            bg-kawaii-pink text-white hover:bg-kawaii-purple
-                           {% endif %}">
-                {% if is_following %}
-                フォロー中
-                {% else %}
-                フォローする
-                {% endif %}
+                           {% endif %}
+                           {% if is_blocking %}hidden{% endif %}">
+                {% if is_following %}フォロー中{% else %}フォローする{% endif %}
             </button>
             <button onclick="openDmWindow({{ user.user_id }}, '{{ user.name }}', '{{ url_for('uploaded_file', filename=user.icon_path) if user.icon_path else '' }}')"
-                    class="inline-block bg-kawaii-purple text-white font-bold py-2 px-6 rounded-full hover:bg-kawaii-purple transition-colors">
+                    class="inline-block bg-kawaii-purple text-white font-bold py-2 px-6 rounded-full hover:bg-kawaii-purple transition-colors {% if is_blocking %}hidden{% endif %}">
                 DMを送る
+            </button>
+            <button id="block-btn" onclick="toggleBlock({{ user.user_id }})"
+                    class="inline-block font-bold py-2 px-6 rounded-full transition-colors
+                           {% if is_blocking %}
+                           bg-red-500 text-white hover:bg-red-600
+                           {% else %}
+                           bg-gray-500 text-white hover:bg-gray-600
+                           {% endif %}">
+                {% if is_blocking %}ブロック解除{% else %}ブロック{% endif %}
             </button>
         </div>
         {% elif is_own_profile %}
@@ -224,5 +230,29 @@ function toggleFollow(userId) {
 }
 
 
+// 🔽 追加: ブロック/ブロック解除処理
+function toggleBlock(userId) {
+    fetch(`/block/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '処理に失敗しました。');
+            return;
+        }
+
+        // 成功したらページをリロードして状態を完全に反映させる
+        // (UIの要素が多く複雑なため、リロードが最も確実)
+        alert(data.message);
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('ブロック処理中にエラーが発生しました。');
+    });
+}
+// 🔼 追加完了
 </script>
 {% endblock %}
