@@ -7,7 +7,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room # join_room, le
 import os # os をインポート
 from werkzeug.utils import secure_filename # secure_filename をインポート
 from sqlalchemy import func, or_, distinct
-from collections import defaultdict 
+from collections import defaultdict
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
 
@@ -40,6 +40,13 @@ follow = db.Table('follow',
 )
 # ====== 🔼 追加完了 🔼 ======
 
+# ====== 🔽 追加: ブロック関係を定義する中間テーブル 🔽 ======
+blocks = db.Table('blocks',
+    db.Column('blocker_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True),
+    db.Column('blocked_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+)
+# ====== 🔼 追加完了 🔼 ======
+
 # ====== 🔽 モデルの修正・追加 🔽 ======
 class User(db.Model):
     __tablename__ = "User"
@@ -58,7 +65,7 @@ class User(db.Model):
     year = db.Column(db.Integer, nullable=True)
 
     department = db.relationship("Department", backref="users")
-    
+
     icon_path = db.Column(db.String(255), nullable=True, default='default_icon.png')
     header_path = db.Column(db.String(255), nullable=True)
     introduction = db.Column(db.Text, nullable=True)
@@ -73,6 +80,14 @@ class User(db.Model):
         primaryjoin=(follow.c.follower_id == user_id),
         secondaryjoin=(follow.c.followed_id == user_id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    # ====== 🔼 追加完了 🔼 ======
+
+    # ====== 🔽 追加: ブロック機能のためのリレーションシップ 🔽 ======
+    blocked_users = db.relationship(
+        'User', secondary=blocks,
+        primaryjoin=(blocks.c.blocker_id == user_id),
+        secondaryjoin=(blocks.c.blocked_id == user_id),
+        backref=db.backref('blocked_by', lazy='dynamic'), lazy='dynamic')
     # ====== 🔼 追加完了 🔼 ======
 
 # ◀️ 追加: 通報情報を格納するモデル
@@ -164,7 +179,24 @@ class QA(db.Model):
 
     user = db.relationship("User", backref="questions")
 
-# ====== 🔽 追加: 機能制限チェック用のデコレータ 🔽 ======
+# ====== 🔽 ブロックリスト取得のヘルパー関数 🔽 ======
+def get_blocked_user_ids():
+    """現在ログイン中のユーザーがブロックしている、またはされているユーザーIDのリストを返す"""
+    if "user_id" not in session:
+        return []
+
+    current_user = User.query.get(session["user_id"])
+    if not current_user:
+        return []
+
+    blocked_ids = {u.user_id for u in current_user.blocked_users}
+    blocked_by_ids = {u.user_id for u in current_user.blocked_by}
+
+    return list(blocked_ids.union(blocked_by_ids))
+# ====== 🔼 追加完了 🔼 ======
+
+
+# ====== 🔽 変更: 機能制限チェック用のデコレータ 🔽 ======
 def check_restriction(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -176,11 +208,12 @@ def check_restriction(f):
                 allowed_endpoints = ['notice_board', 'logout', 'login', 'static', 'uploaded_file', 'index']
                 # 現在のアクセス先が許可リストにない場合、通知用掲示板へリダイレクト
                 if request.endpoint not in allowed_endpoints:
-                    flash("アカウントが制限されているため、このページにはアクセスできません。", "error")
+                    # flashメッセージの代わりにセッションにフラグを立てる
+                    session['show_restriction_modal'] = True
                     return redirect(url_for('notice_board'))
         return f(*args, **kwargs)
     return decorated_function
-# ====== 🔼 追加完了 🔼 ======
+# ====== 🔼 変更完了 🔼 ======
 
 # === 以下、ルートやSocketIOイベントハンドラなどを記述 ===
 
@@ -207,16 +240,16 @@ def handle_disconnect():
 def get_messages(recipient_id):
     if "user_id" not in session:
         return jsonify({"error": "ログインが必要です"}), 401
-    
+
     sender_id = session["user_id"]
-    
+
     messages = DirectMessage.query.filter(
         or_(
             (DirectMessage.sender_id == sender_id) & (DirectMessage.recipient_id == recipient_id),
             (DirectMessage.sender_id == recipient_id) & (DirectMessage.recipient_id == sender_id)
         )
     ).order_by(DirectMessage.created_at.asc()).all()
-    
+
     message_list = []
     for msg in messages:
         message_list.append({
@@ -226,7 +259,7 @@ def get_messages(recipient_id):
             "content": msg.content,
             "created_at": msg.created_at.strftime('%Y/%m/%d %H:%M')
         })
-        
+
     return jsonify(message_list)
 # ====== 🔼 追加完了 🔼 ======
 
@@ -235,9 +268,9 @@ def get_messages(recipient_id):
 def get_conversations():
     if "user_id" not in session:
         return jsonify({"error": "ログインが必要です"}), 401
-    
+
     user_id = session['user_id']
-    
+
     # 自分が送信した相手のIDを取得
     sent_to_ids = db.session.query(distinct(DirectMessage.recipient_id)).filter(
         DirectMessage.sender_id == user_id
@@ -246,13 +279,13 @@ def get_conversations():
     received_from_ids = db.session.query(distinct(DirectMessage.sender_id)).filter(
         DirectMessage.recipient_id == user_id
     )
-    
+
     # 両方のIDを結合して、ユニークなIDリストを作成
     partner_ids_query = sent_to_ids.union(received_from_ids)
-    
+
     # ユーザーオブジェクトを取得
     partners = User.query.filter(User.user_id.in_(partner_ids_query)).all()
-    
+
     # フロントエンドで使いやすいように整形
     conversations = [
         {
@@ -261,12 +294,12 @@ def get_conversations():
             "icon_path": url_for('uploaded_file', filename=partner.icon_path) if partner.icon_path else None
         } for partner in partners
     ]
-    
+
     return jsonify(conversations)
 # ====== 🔼 追加完了 🔼 ======
 
 
-# ====== 🔽 追加: DM送信用SocketIOイベント 🔽 ======
+# ====== 🔽 変更: DM送信用SocketIOイベントにアカウント制限チェックを追加 🔽 ======
 @socketio.on('send_dm')
 def handle_send_dm(data):
     if 'user_id' not in session:
@@ -277,6 +310,24 @@ def handle_send_dm(data):
     content = data.get('content')
     
     if not recipient_id or not content:
+        return
+
+    sender = User.query.get(sender_id)
+
+    # ▼▼▼【ここから追加】アカウント制限のチェック ▼▼▼
+    if sender and sender.is_restricted:
+        emit('dm_error', {'message': 'アカウントが制限されているため、メッセージを送信できません。'}, room=request.sid)
+        return
+    # ▲▲▲【追加完了】▲▲▲
+
+    recipient = User.query.get(recipient_id)
+
+    # 相互にブロック関係をチェック
+    is_blocking = sender.blocked_users.filter_by(user_id=recipient_id).first() is not None
+    is_blocked_by = recipient.blocked_users.filter_by(user_id=sender_id).first() is not None
+
+    if is_blocking or is_blocked_by:
+        emit('dm_error', {'message': 'ブロックしている、またはブロックされているためメッセージを送信できません。'}, room=request.sid)
         return
 
     # メッセージをDBに保存
@@ -304,7 +355,7 @@ def handle_send_dm(data):
         
     # 送信者自身にも送信（UI更新のため）
     emit('receive_dm', message_payload, room=request.sid)
-# ====== 🔼 追加完了 🔼 ======
+# ====== 🔼 変更完了 🔼 ======
 
 @app.route("/")
 def index():
@@ -324,7 +375,7 @@ def login():
         password = request.form["password"]
 
         user = User.query.filter_by(student_id=student_id).first()
-        
+
         if user and check_password_hash(user.password_hash, password) or user and user.password_hash == password:
             school_info = School.query.filter_by(school_id=user.school_id).first()
             department_info = Department.query.filter_by(department_id=user.department_id).first()
@@ -347,7 +398,7 @@ def login():
                 return redirect(url_for("home"))
             elif user.role == "admin":
                 return redirect(url_for("admin_dashboard"))
-        
+
         error = "ユーザー名またはパスワードが違います"
         return render_template("login.html", error=error, username=student_id)
 
@@ -364,10 +415,18 @@ def home():
 def school_wide_board():
     if "role" in session and session["role"] == "student":
         page = request.args.get('page', 1, type=int)
-        
-        posts_pagination = Post.query.filter_by(scope="public").order_by(Post.created_at.desc()).paginate(
+
+        # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
+        blocked_ids = get_blocked_user_ids()
+        posts_query = Post.query.filter_by(scope="public")
+        if blocked_ids:
+            posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
+
+        posts_pagination = posts_query.order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
+        # 🔼 変更完了
+
         posts = posts_pagination.items
 
         if posts:
@@ -382,7 +441,7 @@ def school_wide_board():
                 Reaction.post_id,
                 Reaction.reaction_type
             ).all()
-            
+
             reactions_by_post = defaultdict(dict)
             for post_id, emoji, count in reaction_counts:
                 reactions_by_post[post_id][emoji] = count
@@ -394,17 +453,17 @@ def school_wide_board():
                 Reaction.post_id.in_(post_ids),
                 Reaction.user_id == user_id
             ).all()
-            
+
             user_reactions_set = set(user_reactions_query)
 
             for post in posts:
                 post.reaction_counts = reactions_by_post.get(post.post_id, {})
                 post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-        
+
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts,  
-                               pagination=posts_pagination,     
+                               posts=posts,
+                               pagination=posts_pagination,
                                board_title="校舎間掲示板",
                                current_scope="public")
     return redirect(url_for("login"))
@@ -418,15 +477,22 @@ def school_specific_board():
         if user_school_id is None:
             return redirect(url_for("login"))
 
+        # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
+        blocked_ids = get_blocked_user_ids()
         school_scope = f"school{user_school_id}"
-        
+        posts_query = Post.query.filter_by(scope=school_scope)
+        if blocked_ids:
+            posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
+
         page = request.args.get('page', 1, type=int)
 
-        posts_pagination = Post.query.filter_by(scope=school_scope).order_by(Post.created_at.desc()).paginate(
+        posts_pagination = posts_query.order_by(Post.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
+        # 🔼 変更完了
+
         posts = posts_pagination.items
-    
+
         if posts:
             post_ids = [p.post_id for p in posts]
             user_id = session.get("user_id")
@@ -439,7 +505,7 @@ def school_specific_board():
                 Reaction.post_id,
                 Reaction.reaction_type
             ).all()
-            
+
             reactions_by_post = defaultdict(dict)
             for post_id, emoji, count in reaction_counts:
                 reactions_by_post[post_id][emoji] = count
@@ -451,7 +517,7 @@ def school_specific_board():
                 Reaction.post_id.in_(post_ids),
                 Reaction.user_id == user_id
             ).all()
-            
+
             user_reactions_set = set(user_reactions_query)
 
             for post in posts:
@@ -463,8 +529,8 @@ def school_specific_board():
 
         return render_template("home.html",
                                user=session["name"],
-                               posts=posts,  
-                               pagination=posts_pagination,     
+                               posts=posts,
+                               pagination=posts_pagination,
                                board_title=board_title,
                                current_scope=school_scope)
     return redirect(url_for("login"))
@@ -479,12 +545,12 @@ def following_board():
     current_user = User.query.get(session["user_id"])
 
     followed_users_ids = [user.user_id for user in current_user.followed]
-    
+
     posts_pagination = Post.query.filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
-    
+
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
@@ -497,7 +563,7 @@ def following_board():
             Reaction.post_id,
             Reaction.reaction_type
         ).all()
-        
+
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
@@ -509,42 +575,46 @@ def following_board():
             Reaction.post_id.in_(post_ids),
             Reaction.user_id == user_id
         ).all()
-        
+
         user_reactions_set = set(user_reactions_query)
 
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    
-    return render_template("home.html", 
-                           user=session["name"], 
-                           posts=posts, 
+
+    return render_template("home.html",
+                           user=session["name"],
+                           posts=posts,
                            pagination=posts_pagination,
-                           board_title="フォロー中のユーザーの投稿", 
+                           board_title="フォロー中のユーザーの投稿",
                            current_scope="following")
 
 
+# ====== 🔽 変更: 通知用掲示板のルート 🔽 ======
 @app.route("/home/notice_board")
 def notice_board():
     if "role" not in session or session["role"] != "student":
         return redirect(url_for("login"))
     
+    # セッションからモーダル表示フラグを取得し、テンプレートに渡す
+    show_modal = session.pop('show_restriction_modal', False)
+
     page = request.args.get('page', 1, type=int)
     
     user_school_id = session.get("school_id")
     notice_scopes = []
-    
+
     if user_school_id is not None:
         notice_scopes.append(f'notice{user_school_id}')
-        
+
     if user_school_id == 0:
         notice_scopes.append('notice0')
-    
+
     posts_pagination = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
-    
+
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
@@ -557,7 +627,7 @@ def notice_board():
             Reaction.post_id,
             Reaction.reaction_type
         ).all()
-        
+
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
@@ -569,19 +639,22 @@ def notice_board():
             Reaction.post_id.in_(post_ids),
             Reaction.user_id == user_id
         ).all()
-        
+
         user_reactions_set = set(user_reactions_query)
 
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    
-    return render_template("home.html", 
-                           user=session["name"], 
-                           posts=posts, 
+
+    return render_template("home.html",
+                           user=session["name"],
+                           posts=posts,
                            pagination=posts_pagination,
-                           board_title="通知用掲示板", 
-                           current_scope="notice0")
+                           board_title="通知用掲示板",
+                           current_scope="notice0",
+                           # テンプレートにフラグ変数を渡す
+                           show_restriction_modal=show_modal)
+# ====== 🔼 変更完了 🔼 ======
 
 @app.route("/post", methods=["POST"])
 @check_restriction # ◀️ デコレータを追加
@@ -655,9 +728,9 @@ def add_comment(post_id):
     db.session.commit()
 
     user = User.query.get(session["user_id"])
-    
+
     return jsonify({
-        "success": True, 
+        "success": True,
         "message": "コメントを追加しました",
         "comment": {
             "comment_id": comment.comment_id,
@@ -676,24 +749,40 @@ def profile_view(user_id):
         return redirect(url_for("login"))
 
     viewed_user_id = user_id if user_id is not None else session["user_id"]
-    
-    user = User.query.get(viewed_user_id)
+    is_own_profile = (viewed_user_id == session["user_id"])
 
+    user = User.query.get(viewed_user_id)
     if not user:
         flash("ユーザーが見つかりませんでした。", "error")
         return redirect(request.referrer or url_for("home"))
 
-    is_own_profile = (viewed_user_id == session["user_id"])
-
+    # ▼▼▼【ここから修正】▼▼▼
     is_following = False
-    if "user_id" in session and not is_own_profile:
+    is_blocking = False
+    is_blocked_by = False # 相手からブロックされているかどうかのフラグを追加
+
+    if not is_own_profile:
         current_user = User.query.get(session["user_id"])
         is_following = current_user.followed.filter_by(user_id=user.user_id).first() is not None
 
-    return render_template("profile.html", 
-                           user=user, 
+        # 自分が相手をブロックしているか
+        is_blocking = current_user.blocked_users.filter_by(user_id=user.user_id).first() is not None
+
+        # 相手が自分をブロックしているか
+        is_blocked_by = user.blocked_users.filter_by(user_id=current_user.user_id).first() is not None
+
+        # ブロックしている、またはされている場合は専用ページを表示
+        if is_blocking or is_blocked_by:
+            return render_template("error_blocked.html", user_name=user.name), 403 # テンプレートとステータスコードを返す
+    # ▲▲▲【修正完了】▲▲▲
+
+    return render_template("profile.html",
+                           user=user,
                            is_own_profile=is_own_profile,
                            is_following=is_following,
+                           is_blocking=is_blocking,
+                           # is_blocked_by も渡す（今回は使用しないが、将来的な拡張のため）
+                           is_blocked_by=is_blocked_by,
                            current_user_id=session["user_id"])
 
 
@@ -708,7 +797,7 @@ def follow_user(user_id):
 
     if not user_to_follow:
         return jsonify({'success': False, 'message': 'ユーザーが見つかりません'}), 404
-    
+
     if user_to_follow.user_id == current_user.user_id:
         return jsonify({'success': False, 'message': '自分自身をフォローすることはできません'}), 400
 
@@ -718,8 +807,8 @@ def follow_user(user_id):
         current_user.followed.remove(user_to_follow)
         db.session.commit()
         return jsonify({
-            'success': True, 
-            'action': 'unfollowed', 
+            'success': True,
+            'action': 'unfollowed',
             'message': f'{user_to_follow.name}さんのフォローを解除しました',
             'followers_count': user_to_follow.followers.count(),
             'following_count': current_user.followed.count()
@@ -727,7 +816,7 @@ def follow_user(user_id):
     else:
         current_user.followed.append(user_to_follow)
         db.session.commit()
-        
+
         follower_info = {
             'user_id': current_user.user_id,
             'name': current_user.name,
@@ -735,13 +824,58 @@ def follow_user(user_id):
         }
 
         return jsonify({
-            'success': True, 
-            'action': 'followed', 
+            'success': True,
+            'action': 'followed',
             'message': f'{user_to_follow.name}さんをフォローしました',
             'followers_count': user_to_follow.followers.count(),
             'following_count': current_user.followed.count(),
             'follower_info': follower_info
         })
+
+# ====== 🔽 ここからがブロック機能のコードです。この位置に配置してください。 🔽 ======
+@app.route('/block/<int:user_id>', methods=['POST'])
+@check_restriction
+def block_user(user_id):
+    if "user_id" not in session:
+        return jsonify({'success': False, 'message': 'ログインが必要です'}), 401
+
+    user_to_block = User.query.get(user_id)
+    current_user = User.query.get(session['user_id'])
+
+    if not user_to_block:
+        return jsonify({'success': False, 'message': 'ユーザーが見つかりません'}), 404
+
+    if user_to_block.user_id == current_user.user_id:
+        return jsonify({'success': False, 'message': '自分自身をブロックすることはできません'}), 400
+
+    is_blocking = current_user.blocked_users.filter_by(user_id=user_id).first()
+
+    if is_blocking:
+        # ブロック解除
+        current_user.blocked_users.remove(user_to_block)
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'action': 'unblocked',
+            'message': f'{user_to_block.name}さんのブロックを解除しました',
+        })
+    else:
+        # ブロック実行
+        current_user.blocked_users.append(user_to_block)
+
+        # フォロー関係を双方向で解除
+        if current_user.followed.filter_by(user_id=user_id).first():
+            current_user.followed.remove(user_to_block)
+        if user_to_block.followed.filter_by(user_id=current_user.user_id).first():
+            user_to_block.followed.remove(current_user)
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'action': 'blocked',
+            'message': f'{user_to_block.name}さんをブロックしました',
+        })
+# ====== 🔼 ブロック機能のコードはここまでです 🔼 ======
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -788,7 +922,7 @@ def uploaded_file(filename):
 def settings():
     if "user_id" not in session:
         return redirect(url_for("login"))
-        
+
     return render_template("settings.html")
 
 @app.route("/settings/change_password", methods=["GET", "POST"])
@@ -808,18 +942,29 @@ def change_password():
         if not check_password_hash(user.password_hash, current_password):
             flash("現在のパスワードが正しくありません。", "error")
             return redirect(url_for("change_password"))
-            
+
         if new_password != confirm_password:
             flash("新しいパスワードが一致しません。", "error")
             return redirect(url_for("change_password"))
 
         user.password_hash = generate_password_hash(new_password)
         db.session.commit()
-        
+
         flash("パスワードが正常に変更されました。", "success")
         return redirect(url_for("settings"))
 
     return render_template("change_password.html")
+
+@app.route("/settings/block_list")
+@check_restriction
+def block_list():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    blocked_users = user.blocked_users.all()
+
+    return render_template("block_list.html", blocked_users=blocked_users)
 
 @app.route("/my_posts")
 @check_restriction # ◀️ デコレータを追加
@@ -828,12 +973,12 @@ def my_posts():
         return redirect(url_for("login"))
 
     page = request.args.get('page', 1, type=int)
-    
+
     posts_pagination = Post.query.filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
-    
+
     if posts:
         post_ids = [p.post_id for p in posts]
         user_id = session.get("user_id")
@@ -846,7 +991,7 @@ def my_posts():
             Reaction.post_id,
             Reaction.reaction_type
         ).all()
-        
+
         reactions_by_post = defaultdict(dict)
         for post_id, emoji, count in reaction_counts:
             reactions_by_post[post_id][emoji] = count
@@ -858,18 +1003,18 @@ def my_posts():
             Reaction.post_id.in_(post_ids),
             Reaction.user_id == user_id
         ).all()
-        
+
         user_reactions_set = set(user_reactions_query)
 
         for post in posts:
             post.reaction_counts = reactions_by_post.get(post.post_id, {})
             post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
-    
-    return render_template("home.html", 
-                           user=session["name"], 
-                           posts=posts, 
+
+    return render_template("home.html",
+                           user=session["name"],
+                           posts=posts,
                            pagination=posts_pagination,
-                           board_title=f"{session['name']}さんの投稿一覧", 
+                           board_title=f"{session['name']}さんの投稿一覧",
                            current_scope="my_posts")
 
 # ====== 🔽 ここから新規・修正のルートを追加 🔽 ======
@@ -896,7 +1041,7 @@ def submit_report():
     elif comment_id:
         item = Comment.query.get(comment_id)
         if item: reported_user_id = item.user_id
-    
+
     if not item:
         return jsonify({"success": False, "message": "通報対象が見つかりませんでした"}), 404
 
@@ -921,7 +1066,7 @@ def submit_report():
 def admin_reports():
     if session.get("role") != "admin":
         return redirect(url_for("login"))
-    
+
     # 未解決の通報を新しい順に取得
     reports = Report.query.filter_by(is_resolved=False).order_by(Report.created_at.desc()).all()
     return render_template("admin_reports.html", reports=reports)
@@ -931,7 +1076,7 @@ def admin_reports():
 def toggle_user_restriction(user_id):
     if session.get("role") != "admin":
         return redirect(url_for("login"))
-        
+
     user = User.query.get(user_id)
     if user:
         # 現在の状態を反転 (True -> False, False -> True)
@@ -941,7 +1086,7 @@ def toggle_user_restriction(user_id):
         flash(f"ユーザー '{user.name}' のアカウントを {status} しました。", "success")
     else:
         flash("対象のユーザーが見つかりませんでした。", "error")
-    
+
     return redirect(request.referrer or url_for('admin_reports'))
 
 # ◀️ 追加: 通報を「解決済み」としてマークするAPI
@@ -949,7 +1094,7 @@ def toggle_user_restriction(user_id):
 def resolve_report(report_id):
     if session.get("role") != "admin":
         return redirect(url_for("login"))
-    
+
     report = Report.query.get(report_id)
     if report:
         report.is_resolved = True
@@ -981,7 +1126,7 @@ def create_notice():
         if not content or not notice_scope:
             flash("投稿内容または通知先が不正です。", "error")
             return redirect(url_for("create_notice"))
-        
+
         new_post = Post(
             user_id=session["user_id"],
             content=content,
@@ -989,7 +1134,7 @@ def create_notice():
         )
         db.session.add(new_post)
         db.session.commit()
-        
+
         return redirect(url_for("admin_post_management"))
 
     schools = School.query.all()
@@ -1006,20 +1151,20 @@ def admin_post_management():
     page = request.args.get('page', 1, type=int)
 
     query = Post.query
-    
+
     if scope_filter:
         query = query.filter_by(scope=scope_filter)
-    
+
     if user_name_filter:
         query = query.join(Post.author).filter(User.name.like(f"%{user_name_filter}%"))
 
     posts_pagination = query.order_by(Post.created_at.desc()).paginate(
         page=page, per_page=10, error_out=False
     )
-    
+
     schools = School.query.all()
-    
-    return render_template("admin_post_management.html", 
+
+    return render_template("admin_post_management.html",
                            posts=posts_pagination.items,
                            pagination=posts_pagination,
                            schools=schools,
@@ -1041,7 +1186,7 @@ def create_account():
         department_id = request.form["department"]
         password = request.form["password"]
         year = request.form["year"]
-        
+
         hashed_password = generate_password_hash(password)
 
         new_user = User(
@@ -1057,9 +1202,9 @@ def create_account():
         db.session.add(new_user)
         db.session.commit()
 
-        return redirect(url_for("user_management"))  
+        return redirect(url_for("user_management"))
 
-    
+
     schools = School.query.all()
     departments = Department.query.all()
     return render_template(
@@ -1098,7 +1243,7 @@ def user_management():
     year = request.args.get("year", type=int)
 
     query = User.query.filter(User.role == "student")
-    
+
     school_name = "吉田学園グループ全体"
     if school_id is not None and school_id != -1:
         query = query.filter_by(school_id=school_id)
@@ -1168,7 +1313,7 @@ def edit_user(user_id):
         if student_id and school_id:
             if len(student_id) > 1:
                 student_id = str(school_id) + student_id[1:]
-                
+
         user.student_id = student_id
         user.school_id = int(school_id) if school_id else user.school_id
         user.department_id = int(department_id) if department_id else None
@@ -1193,10 +1338,10 @@ def api_departments():
 def qa_page():
     if "user_id" not in session:
         return redirect(url_for("login"))
-    
+
     page = request.args.get('page', 1, type=int)
     tab = request.args.get('tab', 'unanswered')
-    
+
     if tab == 'answered':
         qas_pagination = QA.query.filter(QA.answer.isnot(None)).order_by(QA.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
@@ -1205,15 +1350,15 @@ def qa_page():
         qas_pagination = QA.query.filter(QA.answer.is_(None)).order_by(QA.created_at.desc()).paginate(
             page=page, per_page=POSTS_PER_PAGE, error_out=False
         )
-    
+
     unanswered_count = QA.query.filter(QA.answer.is_(None)).count()
     answered_count = QA.query.filter(QA.answer.isnot(None)).count()
-    
-    return render_template("qa.html", 
-                         qas=qas_pagination.items, 
+
+    return render_template("qa.html",
+                         qas=qas_pagination.items,
                          pagination=qas_pagination,
                          current_tab=tab,
-                         unanswered_count=unanswered_count, 
+                         unanswered_count=unanswered_count,
                          answered_count=answered_count)
 
 @socketio.on('ask_question')
@@ -1253,7 +1398,7 @@ def handle_answer(data):
 
     qa_id = data.get('qa_id')
     answer = data.get('answer')
-    
+
     qa = QA.query.get(qa_id)
     if qa and answer:
         qa.answer = answer
@@ -1283,7 +1428,7 @@ def handle_update_answer(data):
 
     qa_id = data.get('qa_id')
     answer = data.get('answer')
-    
+
     qa = QA.query.get(qa_id)
     if qa and answer:
         qa.answer = answer
@@ -1306,26 +1451,26 @@ def delete_comment(comment_id):
     if not comment:
         flash("コメントが見つかりませんでした。", "error")
         return redirect(request.referrer or url_for("admin_post_management"))
-    
+
     # ◀️ 関連する通報も削除
     Report.query.filter_by(comment_id=comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
     flash("コメントを削除しました。", "success")
-    
+
     return redirect(request.referrer or url_for("admin_post_management"))
 
 @socketio.on('delete_qa')
 def handle_delete_qa(data):
     qa_id = data.get('qa_id')
     qa = QA.query.get(qa_id)
-    
+
     if not qa:
         return
-    
+
     if session.get('role') != 'admin' and qa.user_id != session.get('user_id'):
         return
-    
+
     db.session.delete(qa)
     db.session.commit()
 
@@ -1346,7 +1491,7 @@ def toggle_reaction(post_id):
 
     data = request.get_json()
     emoji = data.get("emoji")
-    
+
     if not emoji:
         return jsonify({"error": "無効なリアクションです"}), 400
 
@@ -1372,7 +1517,7 @@ def toggle_reaction(post_id):
     db.session.commit()
 
     count = Reaction.query.filter_by(post_id=post_id, reaction_type=emoji).count()
-    
+
     return jsonify({
         "count": count,
         "active": active
@@ -1386,7 +1531,7 @@ def api_user_search():
         return []
 
     users = User.query.filter(User.name.like(f"%{query}%")).limit(10).all()
-    
+
     results = [{"id": user.user_id, "name": user.name, "student_id": user.student_id} for user in users]
     return results
 
@@ -1406,7 +1551,7 @@ def user_delete_comment(comment_id):
     Report.query.filter_by(comment_id=comment.comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
-    
+
     return jsonify({"success": True, "message": "コメントを削除しました"})
 
 @app.route("/comment/edit/<int:comment_id>", methods=["POST"])
@@ -1424,10 +1569,10 @@ def edit_comment(comment_id):
     new_content = request.form.get("content")
     if not new_content:
         return jsonify({"success": False, "message": "コメント内容を入力してください"}), 400
-    
+
     comment.content = new_content
     db.session.commit()
-    
+
     return jsonify({"success": True, "message": "コメントを更新しました", "content": new_content})
 
 @app.route("/post/edit/<int:post_id>", methods=["POST"])
@@ -1445,12 +1590,15 @@ def edit_post(post_id):
     new_content = request.form.get("content")
     if not new_content:
         return jsonify({"success": False, "message": "投稿内容を入力してください"}), 400
-    
+
     post.content = new_content
     db.session.commit()
-    
+
     return jsonify({"success": True, "message": "投稿を更新しました", "content": new_content})
 
+# ！！！！！！注意！！！！！！
+# この if __name__ == "__main__": ブロックより上に
+# @app.route(...) を定義してください。
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
