@@ -200,6 +200,83 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300 z-[60]"
+        id="sideMenu">
+        <div class="p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
+                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <nav class="space-y-4">
+                {% if session.role == 'admin' %}
+                <a href="{{ url_for('admin_dashboard') }}" 
+                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
+                </a>
+                <a href="{{ url_for('user_management') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <span class="text-xl">👥</span>
+                    <span>ユーザー管理</span>
+                </a>
+                <a href="{{ url_for('admin_post_management') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <span class="text-xl">📝</span>
+                    <span>投稿管理</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <span class="text-xl">❓</span>
+                    <span>Q&A管理</span>
+                </a>
+                {% else %}
+                <a href="{{ url_for('school_wide_board') }}" 
+                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">🏫</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">校舎間掲示板</span>
+                </a>
+                <a href="{{ url_for('school_specific_board') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    <span>{{ session.get('school_name', '用掲示板') }}</span>
+                </a>
+                <a href="{{ url_for('notice_board') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>通知用掲示板</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Q&A</span>
+                </a>
+                <a href="{{ url_for('following_board') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">❤️</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    
+    <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+        <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+    </button>
+
     <nav class="bg-white/95 backdrop-blur-xl shadow-kawaii sticky top-0 z-50 border-b border-kawaii-pink/10 transition-all duration-300 hover:shadow-kawaii-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
@@ -277,7 +354,21 @@
     </main>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    
+    <script>
+        // ハンバーガーメニューの制御
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            menu.classList.toggle('-translate-x-full');
+        }
+        
+        // 初期状態でメニューを閉じる
+        document.addEventListener('DOMContentLoaded', function() {
+            const menu = document.getElementById('sideMenu');
+            if (menu) {
+                menu.classList.add('-translate-x-full');
+            }
+        });
+    </script>
     {% if session.user_id %}
     <script>
         const currentUserId = {{ session.user_id }};
