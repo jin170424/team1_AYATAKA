@@ -1,34 +1,258 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-8">
-    <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-md p-8 border border-kawaii-lavender">
-        <div class="text-center mb-8">
-            <h2 class="text-2xl font-bold text-kawaii-dark">プロフィール</h2>
-            <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
+<div class="max-w-3xl mx-auto px-4 py-8">
+    <div class="relative mb-[-75px]">
+        {% if user.header_path %}
+            <img src="{{ url_for('uploaded_file', filename=user.header_path) }}" alt="ヘッダー画像" class="w-full h-48 object-cover rounded-t-lg shadow-md">
+        {% else %}
+            <div class="w-full h-48 bg-gradient-to-r from-kawaii-pink to-kawaii-purple rounded-t-lg"></div>
+        {% endif %}
+    </div>
+
+    <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-xl p-8 border border-kawaii-lavender relative">
+        <div class="absolute left-1/2 transform -translate-x-1/2 -top-20">
+            {% if user.icon_path %}
+                <img src="{{ url_for('uploaded_file', filename=user.icon_path) }}" alt="アイコン" class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover border border-gray-200">
+            {% else %}
+                <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
+                    <span class="text-gray-500 text-3xl">👤</span>
+                </div>
+            {% endif %}
         </div>
-        <div class="space-y-6">
-            <div class="group border-b border-kawaii-lavender/50 pb-4 hover:border-kawaii-pink/50 transition-colors duration-300">
-                <p class="text-sm text-kawaii-purple mb-1">名前</p>
-                <p class="text-lg font-medium text-kawaii-dark">{{ user.name }}</p>
-            </div>
-            <div class="group border-b border-kawaii-lavender/50 pb-4 hover:border-kawaii-pink/50 transition-colors duration-300">
-                <p class="text-sm text-kawaii-purple mb-1">学籍番号</p>
-                <p class="text-lg font-medium text-kawaii-dark">{{ user.student_id }}</p>
-            </div>
-            <div class="group border-b border-kawaii-lavender/50 pb-4 hover:border-kawaii-pink/50 transition-colors duration-300">
-                <p class="text-sm text-kawaii-purple mb-1">校舎</p>
-                <p class="text-lg font-medium text-kawaii-dark">{{ user.school.school_name }}</p>
-            </div>
-            <div class="group border-b border-kawaii-lavender/50 pb-4 hover:border-kawaii-pink/50 transition-colors duration-300">
-                <p class="text-sm text-kawaii-purple mb-1">学科</p>
-                <p class="text-lg font-medium text-kawaii-dark">{{ user.department.department_name if user.department else 'なし' }}</p>
-            </div>
-            <div class="group pb-4">
-                <p class="text-sm text-kawaii-purple mb-1">学年</p>
-                <p class="text-lg font-medium text-kawaii-dark">{{ user.year }}年</p>
+
+        <div class="text-center mt-16 mb-2">
+            <h2 class="text-3xl font-bold text-kawaii-dark">{{ user.name }}</h2>
+            <p class="text-md text-kawaii-purple">{{ user.student_id }}</p>
+        </div>
+
+        <div class="flex justify-center space-x-6 my-4 text-kawaii-dark">
+            <a href="#" onclick="openModal('followersModal')" class="text-center hover:opacity-75">
+                <span class="font-bold text-lg" id="followers-count">{{ user.followers.count() }}</span>
+                <span class="text-sm block">フォロワー</span>
+            </a>
+            <a href="#" onclick="openModal('followingModal')" class="text-center hover:opacity-75">
+                <span class="font-bold text-lg" id="following-count">{{ user.followed.count() }}</span>
+                <span class="text-sm block">フォロー中</span>
+            </a>
+        </div>
+        <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-bold text-kawaii-dark mb-2">自己紹介</h3>
+            <p class="text-gray-700 whitespace-pre-wrap">{{ user.introduction or '自己紹介が設定されていません。' }}</p>
+        </div>
+
+        <div class="mb-8">
+            <h3 class="font-bold text-kawaii-dark mb-2">タグ</h3>
+            <div class="flex flex-wrap gap-2">
+                {% if user.tags %}
+                    {% for tag in user.tags.split(',') %}
+                        {% if tag.strip() %}
+                            <span class="bg-kawaii-purple/20 text-kawaii-purple text-sm font-medium px-3 py-1 rounded-full">{{ tag.strip() }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-gray-500">タグが設定されていません。</p>
+                {% endif %}
             </div>
         </div>
+
+        <div class="border-t border-kawaii-lavender/50 pt-6 space-y-4">
+            <p><span class="font-semibold text-kawaii-purple">校舎:</span> {{ user.school.school_name }}</p>
+            <p><span class="font-semibold text-kawaii-purple">学科:</span> {{ user.department.department_name if user.department else 'なし' }}</p>
+            <p><span class="font-semibold text-kawaii-purple">学年:</span> {{ user.year }}年</p>
+        </div>
+        
+        {% if not is_own_profile %}
+        <div class="text-center mt-8 space-x-2" id="user-action-buttons">
+            <button id="follow-btn" onclick="toggleFollow({{ user.user_id }})" 
+                    class="inline-block font-bold py-2 px-6 rounded-full transition-colors
+                           {% if is_following %}
+                           bg-gray-200 text-gray-700 hover:bg-gray-300
+                           {% else %}
+                           bg-kawaii-pink text-white hover:bg-kawaii-purple
+                           {% endif %}
+                           {% if is_blocking %}hidden{% endif %}">
+                {% if is_following %}フォロー中{% else %}フォローする{% endif %}
+            </button>
+            <button onclick="openDmWindow({{ user.user_id }}, '{{ user.name }}', '{{ url_for('uploaded_file', filename=user.icon_path) if user.icon_path else '' }}')"
+                    class="inline-block bg-kawaii-purple text-white font-bold py-2 px-6 rounded-full hover:bg-kawaii-purple transition-colors {% if is_blocking %}hidden{% endif %}">
+                DMを送る
+            </button>
+            <button id="block-btn" onclick="toggleBlock({{ user.user_id }})"
+                    class="inline-block font-bold py-2 px-6 rounded-full transition-colors
+                           {% if is_blocking %}
+                           bg-red-500 text-white hover:bg-red-600
+                           {% else %}
+                           bg-gray-500 text-white hover:bg-gray-600
+                           {% endif %}">
+                {% if is_blocking %}ブロック解除{% else %}ブロック{% endif %}
+            </button>
+        </div>
+        {% elif is_own_profile %}
+        <div class="text-center mt-8">
+            <a href="{{ url_for('edit_profile') }}" class="inline-block bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-full hover:bg-gray-300 transition-colors">
+                プロフィールを編集
+            </a>
+        </div>
+        {% endif %}
+        </div>
+</div>
+
+<div id="followersModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="closeModal('followersModal')">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative" onclick="event.stopPropagation();">
+        <h3 class="text-xl font-bold mb-4 text-kawaii-dark">フォロワー</h3>
+        <button onclick="closeModal('followersModal')" class="absolute top-2 right-3 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+        <ul id="follower-list" class="space-y-4 max-h-80 overflow-y-auto">
+            {% for follower in user.followers %}
+            <li id="follower-user-{{ follower.user_id }}">
+                <a href="{{ url_for('profile_view', user_id=follower.user_id) }}" class="flex items-center space-x-3 group">
+                    {% if follower.icon_path %}
+                        <img src="{{ url_for('uploaded_file', filename=follower.icon_path) }}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">
+                    {% else %}
+                        <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>
+                    {% endif %}
+                    <span class="text-kawaii-purple font-medium group-hover:underline">{{ follower.name }}</span>
+                </a>
+            </li>
+            {% else %}
+            <li id="no-followers-message" class="text-gray-500">まだフォロワーがいません。</li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
+
+<div id="followingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" onclick="closeModal('followingModal')">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative" onclick="event.stopPropagation();">
+        <h3 class="text-xl font-bold mb-4 text-kawaii-dark">フォロー中</h3>
+        <button onclick="closeModal('followingModal')" class="absolute top-2 right-3 text-2xl text-gray-500 hover:text-gray-800">&times;</button>
+        <ul class="space-y-4 max-h-80 overflow-y-auto">
+            {% for followed_user in user.followed %}
+            <li>
+                <a href="{{ url_for('profile_view', user_id=followed_user.user_id) }}" class="flex items-center space-x-3 group">
+                    {% if followed_user.icon_path %}
+                        <img src="{{ url_for('uploaded_file', filename=followed_user.icon_path) }}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">
+                    {% else %}
+                        <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>
+                    {% endif %}
+                    <span class="text-kawaii-purple font-medium group-hover:underline">{{ followed_user.name }}</span>
+                </a>
+            </li>
+            {% else %}
+            <li class="text-gray-500">誰もフォローしていません。</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+// モーダル開閉
+function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
+function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+
+// ▼▼▼【ここからJavaScriptを全面的に修正】▼▼▼
+// フォロー/アンフォロー処理
+function toggleFollow(userId) {
+    const isOwnProfile = {{ 'true' if is_own_profile else 'false' }};
+    const currentUserId = {{ current_user_id }};
+
+    fetch(`/follow/${userId}`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '処理に失敗しました。');
+            return;
+        }
+
+        // --- DOM要素を取得 ---
+        const followBtn = document.getElementById('follow-btn');
+        const followersCountEl = document.getElementById('followers-count');
+        const followingCountEl = document.getElementById('following-count');
+        const followerList = document.getElementById('follower-list');
+
+        // --- 表示カウントを更新 ---
+        followersCountEl.textContent = data.followers_count;
+        if (isOwnProfile) {
+            // 自分のプロフィールを見てる時だけ自分のフォロー中カウントを更新
+            followingCountEl.textContent = data.following_count;
+        }
+
+        // --- フォローした場合の処理 ---
+        if (data.action === 'followed') {
+            // ボタンの表示を「フォロー中」に変更
+            followBtn.textContent = 'フォロー中';
+            followBtn.classList.remove('bg-kawaii-pink', 'text-white', 'hover:bg-kawaii-purple');
+            followBtn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+
+            // フォロワーリストに自分を追加
+            const followerInfo = data.follower_info;
+            const noFollowersMessage = document.getElementById('no-followers-message');
+            if(noFollowersMessage) noFollowersMessage.remove();
+
+            const newListItem = document.createElement('li');
+            newListItem.id = `follower-user-${followerInfo.user_id}`;
+            
+            const iconHtml = followerInfo.icon_path
+                ? `<img src="${followerInfo.icon_path}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">`
+                : `<div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>`;
+
+            newListItem.innerHTML = `
+                <a href="/profile/${followerInfo.user_id}" class="flex items-center space-x-3 group">
+                    ${iconHtml}
+                    <span class="text-kawaii-purple font-medium group-hover:underline">${followerInfo.name}</span>
+                </a>`;
+            followerList.appendChild(newListItem);
+
+        // --- フォロー解除した場合の処理 ---
+        } else { // 'unfollowed'
+            // ボタンの表示を「フォローする」に変更
+            followBtn.textContent = 'フォローする';
+            followBtn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+            followBtn.classList.add('bg-kawaii-pink', 'text-white', 'hover:bg-kawaii-purple');
+            
+            // フォロワーリストから自分を削除
+            const userToRemove = document.getElementById(`follower-user-${currentUserId}`);
+            if (userToRemove) userToRemove.remove();
+            
+            // リストが空になったかチェック
+            if (followerList.children.length === 0) {
+                 const emptyMessage = document.createElement('li');
+                 emptyMessage.id = 'no-followers-message';
+                 emptyMessage.className = 'text-gray-500';
+                 emptyMessage.textContent = 'まだフォロワーがいません。';
+                 followerList.appendChild(emptyMessage);
+            }
+        }
+    }).catch(error => console.error('Error:', error));
+}
+
+
+// 🔽 追加: ブロック/ブロック解除処理
+function toggleBlock(userId) {
+    fetch(`/block/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '処理に失敗しました。');
+            return;
+        }
+
+        // 成功したらページをリロードして状態を完全に反映させる
+        // (UIの要素が多く複雑なため、リロードが最も確実)
+        alert(data.message);
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('ブロック処理中にエラーが発生しました。');
+    });
+}
+// 🔼 追加完了
+</script>
 {% endblock %}

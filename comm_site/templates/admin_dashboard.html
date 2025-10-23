@@ -1,36 +1,133 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="bg-white shadow-sm rounded-lg p-6">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6">管理画面</h2>
-    <p class="text-gray-600 mb-8">ここからユーザー管理、投稿管理へ移動できます。</p>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <a href="{{ url_for('user_management_select') }}" 
-           class="flex items-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-            <div class="flex-shrink-0 bg-indigo-100 rounded-lg p-3">
-                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-                </svg>
+<div class="min-h-screen">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
+        id="sideMenu">
+        <div class="p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
+                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
-            <div class="ml-4">
-                <h3 class="text-lg font-medium text-gray-900">ユーザー管理</h3>
-                <p class="mt-1 text-sm text-gray-500">ユーザーの追加、編集、削除を行います</p>
-            </div>
-        </a>
+            
+            <nav class="space-y-4">
+                <a href="{{ url_for('admin_dashboard') }}" 
+                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
+                </a>
+                <a href="{{ url_for('user_management_select') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <span class="text-xl">👥</span>
+                    <span>ユーザー管理</span>
+                </a>
+                <a href="{{ url_for('admin_post_management') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <span class="text-xl">📝</span>
+                    <span>投稿管理</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <span class="text-xl">❓</span>
+                    <span>Q&A管理</span>
+                </a>
+            </nav>
+        </div>
+    </div>
 
-        <a href="{{ url_for('admin_post_management') }}" 
-           class="flex items-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-            <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
-                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                </svg>
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+            <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+        <div class="bg-white shadow-sm rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">管理画面</h2>
+            <p class="text-gray-600 mb-8">ここからユーザー管理、投稿管理、Q&A管理へ移動できます。</p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+
+                <a href="{{ url_for('user_management_select') }}" 
+                   class="group relative flex flex-col items-center justify-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-40">
+                    <div class="flex-shrink-0 bg-indigo-100 rounded-lg p-3 transition-transform duration-300 group-hover:scale-110">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-center text-gray-900">ユーザー管理</h3>
+                    <div class="absolute inset-0 flex items-center justify-center p-4 bg-black bg-opacity-75 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-center text-sm text-white">ユーザーの追加、編集、削除を行います</p>
+                    </div>
+                </a>
+
+                <a href="{{ url_for('admin_post_management') }}" 
+                   class="group relative flex flex-col items-center justify-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-40">
+                    <div class="flex-shrink-0 bg-green-100 rounded-lg p-3 transition-transform duration-300 group-hover:scale-110">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-center text-gray-900">投稿管理</h3>
+                    <div class="absolute inset-0 flex items-center justify-center p-4 bg-black bg-opacity-75 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-center text-sm text-white">投稿の確認、編集、削除を行います</p>
+                    </div>
+                </a>
+
+                <a href="{{ url_for('qa_page') }}" 
+                   class="group relative flex flex-col items-center justify-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-40">
+                    <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3 transition-transform duration-300 group-hover:scale-110">
+                        <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                        </svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-center text-gray-900">Q&A管理</h3>
+                    <div class="absolute inset-0 flex items-center justify-center p-4 bg-black bg-opacity-75 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-center text-sm text-white">質問への回答や管理を行います</p>
+                    </div>
+                </a>
+                
+                <a href="{{ url_for('create_notice') }}" 
+                   class="group relative flex flex-col items-center justify-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-40">
+                    <div class="flex-shrink-0 bg-yellow-100 rounded-lg p-3 transition-transform duration-300 group-hover:scale-110">
+                        <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                        </svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-center text-gray-900">通知を投稿</h3>
+                    <div class="absolute inset-0 flex items-center justify-center p-4 bg-black bg-opacity-75 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-center text-sm text-white">学生に通知を送信します</p>
+                    </div>
+                </a>
+
+                <a href="{{ url_for('admin_reports') }}" 
+                   class="group relative flex flex-col items-center justify-center p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-40">
+                    <div class="flex-shrink-0 bg-red-100 rounded-lg p-3 transition-transform duration-300 group-hover:scale-110">
+                        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg>
+                    </div>
+                    <h3 class="mt-4 text-lg font-medium text-center text-gray-900">通報管理</h3>
+                    <div class="absolute inset-0 flex items-center justify-center p-4 bg-black bg-opacity-75 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-center text-sm text-white">ユーザーからの通報を確認・対応します</p>
+                    </div>
+                </a>
+                </div>
             </div>
-            <div class="ml-4">
-                <h3 class="text-lg font-medium text-gray-900">投稿管理</h3>
-                <p class="mt-1 text-sm text-gray-500">投稿の確認、編集、削除を行います</p>
-            </div>
-        </a>
-        <a href="{{ url_for('qa_admin') }}">Q&A 管理者画面</a>
     </div>
 </div>
+<script>
+    // ハンバーガーメニューの制御 (変更なし)
+    function toggleMenu() {
+        const menu = document.getElementById('sideMenu');
+        menu.classList.toggle('-translate-x-full');
+    }
+    
+    // 初期状態でメニューを閉じる (変更なし)
+    document.addEventListener('DOMContentLoaded', function() {
+        const menu = document.getElementById('sideMenu');
+        menu.classList.add('-translate-x-full');
+    });
+</script>
 {% endblock %}

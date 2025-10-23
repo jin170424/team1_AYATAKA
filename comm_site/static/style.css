@@ -56,3 +56,61 @@ h2 {
     border-radius: 4px;
     margin-top: 15px;
 }
+
+/* リアクション機能のスタイル */
+.reaction-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ff69b4;
+    border-radius: 9999px;
+    background-color: white;
+    color: #ff69b4;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.reaction-button:hover {
+    background-color: #ff69b4;
+    color: white;
+}
+
+.reaction-button.active {
+    background-color: #ff69b4;
+    color: white;
+}
+
+.reaction-count {
+    margin-left: 0.5rem;
+    font-weight: 600;
+}
+
+.reaction-emoji-picker {
+    display: none;
+    position: absolute;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem;
+    z-index: 50;
+}
+
+.reaction-emoji-picker.show {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+}
+
+.reaction-emoji {
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s;
+}
+
+.reaction-emoji:hover {
+    background-color: #f3f4f6;
+}

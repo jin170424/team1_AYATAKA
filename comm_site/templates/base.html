@@ -20,7 +20,13 @@
                         'kawaii-peach': '#FFB6B6',
                         'kawaii-dark': '#4A4A4A',
                         'kawaii-light': '#FFFFFF',
-                        'kawaii-text': '#2C3E50'
+                        'kawaii-text': '#2C3E50',
+                        'kawaii-gradient-start': '#FF88B6',
+                        'kawaii-gradient-end': '#6B9AC4'
+                    },
+                    boxShadow: {
+                        'kawaii': '0 4px 6px -1px rgba(255, 136, 182, 0.1), 0 2px 4px -1px rgba(107, 154, 196, 0.06)',
+                        'kawaii-lg': '0 10px 15px -3px rgba(255, 136, 182, 0.1), 0 4px 6px -2px rgba(107, 154, 196, 0.05)',
                     },
                     animation: {
                         'bounce-slow': 'bounce 3s infinite',
@@ -47,6 +53,107 @@
             }
         }
     </script>
+    <script>
+        function toggleComments(commentsId) {
+            const commentsDiv = document.getElementById(commentsId);
+            const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
+            
+            if (commentsDiv.classList.contains('hidden')) {
+                commentsDiv.classList.remove('hidden');
+                commentsDiv.classList.add('comment-slide-down');
+                arrowIcon.classList.add('rotate-180');
+            } else {
+                commentsDiv.classList.add('comment-slide-up');
+                arrowIcon.classList.remove('rotate-180');
+                
+                setTimeout(() => {
+                    commentsDiv.classList.add('hidden');
+                    commentsDiv.classList.remove('comment-slide-up');
+                }, 300);
+            }
+        }
+    </script>
+    <script>
+        // リアクション関連の関数
+        async function toggleReaction(postId, emoji) {
+            try {
+                const response = await fetch(`/api/reaction/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ emoji: emoji })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const reactionButtonId = `reaction-button-${postId}-${emoji}`;
+                    let button = document.getElementById(reactionButtonId);
+
+                    if (data.active && !button) {
+                        const reactionsContainer = document.getElementById(`reactions-${postId}`);
+                        if (reactionsContainer) {
+                            const newButton = document.createElement('button');
+                            newButton.id = reactionButtonId;
+                            newButton.className = 'reaction-button';
+                            newButton.onclick = () => toggleReaction(postId, emoji);
+
+                            const emojiSpan = document.createElement('span');
+                            emojiSpan.className = 'reaction-emoji';
+                            emojiSpan.textContent = emoji;
+                            newButton.appendChild(emojiSpan);
+
+                            const countSpan = document.createElement('span');
+                            countSpan.className = 'reaction-count';
+                            countSpan.id = `reaction-count-${postId}-${emoji}`;
+                            newButton.appendChild(countSpan);
+
+                            reactionsContainer.appendChild(newButton);
+                            button = newButton;
+                        }
+                    }
+
+                    updateReactionCount(postId, emoji, data.count);
+                    toggleReactionButtonState(postId, emoji, data.active);
+
+                    const defaultEmojis = ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡'];
+                    if (data.count === 0 && !data.active && button && !defaultEmojis.includes(emoji)) {
+                        button.remove();
+                    }
+
+                    const picker = document.getElementById(`emoji-picker-${postId}`);
+                    if (picker && picker.classList.contains('show')) {
+                        picker.classList.remove('show');
+                    }
+                }
+            } catch (error) {
+                console.error('リアクションの更新に失敗しました:', error);
+            }
+        }
+
+        function showEmojiPicker(postId) {
+            const picker = document.getElementById(`emoji-picker-${postId}`);
+            picker.classList.toggle('show');
+        }
+
+        function updateReactionCount(postId, emoji, count) {
+            const countElement = document.getElementById(`reaction-count-${postId}-${emoji}`);
+            if (countElement) {
+                countElement.textContent = count;
+            }
+        }
+
+        function toggleReactionButtonState(postId, emoji, active) {
+            const button = document.getElementById(`reaction-button-${postId}-${emoji}`);
+            if (button) {
+                if (active) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@300;400;500;700&display=swap');
         
@@ -64,92 +171,147 @@
             100% { background-position: 0% 50%; }
         }
 
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
+        /* コメント折りたたみアニメーション */
+        .comment-slide-down { animation: slideDown 0.3s ease-out forwards; }
+        .comment-slide-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
 
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: rgba(255, 255, 255, 0.95);
-            min-width: 160px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            backdrop-filter: blur(8px);
-            z-index: 1;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .dropdown-content a {
-            color: #2C3E50;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            margin: 4px;
-        }
-
-        .dropdown-content a:hover {
-            background-color: rgba(78, 205, 196, 0.1);
-            transform: translateX(5px);
-        }
-
-        .dropdown:hover .dropdown-content {
-            display: block;
-        }
-
-        .user-info-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 8px 16px;
-            border-radius: 50px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            backdrop-filter: blur(8px);
-            transition: all 0.3s ease;
-        }
-
-        .user-info-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-        }
+        /* ドロップダウン */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; background-color: rgba(255, 255, 255, 0.95); min-width: 160px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); backdrop-filter: blur(8px); z-index: 1; animation: fadeIn 0.3s ease-out; }
+        .dropdown-content a { color: #2C3E50; padding: 12px 16px; text-decoration: none; display: block; transition: all 0.3s ease; border-radius: 8px; margin: 4px; }
+        .dropdown-content a:hover { background-color: rgba(78, 205, 196, 0.1); transform: translateX(5px); }
+        .dropdown:hover .dropdown-content { display: block; }
+        .user-info-container { display: flex; align-items: center; gap: 12px; background: rgba(255, 255, 255, 0.8); padding: 8px 16px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); backdrop-filter: blur(8px); transition: all 0.3s ease; }
+        .user-info-container:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .user-info-container .user-info { margin: 0; padding: 0; font-size: 0.95em; color: #2C3E50; font-weight: 500; }
         
-        .user-info-container .user-info {
-            margin: 0;
-            padding: 0;
-            font-size: 0.95em;
-            color: #2C3E50;
-            font-weight: 500;
-        }
+        /* ▼▼▼【ここから新しいCSSを追加】▼▼▼ */
+        .dm-window { position: fixed; bottom: 0; background-color: white; border-radius: 0.5rem 0.5rem 0 0; box-shadow: 0 0 20px rgba(0,0,0,0.2); width: 320px; height: 400px; display: flex; flex-direction: column; z-index: 1000; transition: height 0.3s ease; }
+        .dm-window.minimized { height: 48px; overflow: hidden; }
+        .dm-window-header { background-color: #B19CD9; color: white; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border-radius: 0.5rem 0.5rem 0 0; cursor: move; }
+        .dm-window-controls button { background: none; border: none; color: white; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+        .dm-messages { flex: 1; padding: 0.75rem; overflow-y: auto; }
+        .notification-dot { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; background-color: #ff4757; border-radius: 50%; display: none; }
+        #conversation-panel { position: fixed; right: 0; top: 4rem; height: calc(100% - 4rem); width: 300px; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 2000; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #conversation-panel.open { transform: translateX(0); }
+        /* ▲▲▲【ここまで新しいCSSを追加】▲▲▲ */
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <nav class="bg-white/90 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-kawaii-pink/10">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300 z-[60]"
+        id="sideMenu">
+        <div class="p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
+                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <nav class="space-y-4">
+                {% if session.role == 'admin' %}
+                <a href="{{ url_for('admin_dashboard') }}" 
+                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
+                </a>
+                <a href="{{ url_for('user_management') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <span class="text-xl">👥</span>
+                    <span>ユーザー管理</span>
+                </a>
+                <a href="{{ url_for('admin_post_management') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <span class="text-xl">📝</span>
+                    <span>投稿管理</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <span class="text-xl">❓</span>
+                    <span>Q&A管理</span>
+                </a>
+                {% else %}
+                <a href="{{ url_for('school_wide_board') }}" 
+                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">🏫</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">校舎間掲示板</span>
+                </a>
+                <a href="{{ url_for('school_specific_board') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    <span>{{ session.get('school_name', '用掲示板') }}</span>
+                </a>
+                <a href="{{ url_for('notice_board') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span>通知用掲示板</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}"
+                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Q&A</span>
+                </a>
+                <a href="{{ url_for('following_board') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">❤️</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    
+    <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+        <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+    </button>
+
+    <nav class="bg-white/95 backdrop-blur-xl shadow-kawaii sticky top-0 z-50 border-b border-kawaii-pink/10 transition-all duration-300 hover:shadow-kawaii-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <a href="{{ url_for('index') }}" class="group relative">
-                        <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-kawaii-pink via-kawaii-purple to-kawaii-blue animate-pulse-slow">
-                            CommSite
+                    <a href="{{ url_for('index') }}" class="group relative transform transition-transform duration-300 hover:scale-105">
+                        <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-kawaii-gradient-start to-kawaii-gradient-end animate-pulse-slow">
+                            Y-Lounge
                         </span>
-                        <span class="absolute -top-1 -right-4 text-lg transform rotate-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">✨</span>
+                        <span class="absolute -top-1 -right-4 text-lg transform rotate-12 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-sparkle">✨</span>
+                        <span class="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-kawaii-gradient-start to-kawaii-gradient-end transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
                     </a>
                 </div>
                 {% if session.name %}
                 <div class="flex items-center space-x-6">
+                    <button onclick="toggleConversationPanel(event)" class="relative p-2 rounded-full bg-gradient-to-r from-kawaii-gradient-start/10 to-kawaii-gradient-end/10 hover:from-kawaii-gradient-start/20 hover:to-kawaii-gradient-end/20 transition-all duration-300 transform hover:scale-110 group">
+                        <svg class="w-6 h-6 text-kawaii-purple transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <span id="dm-notification-dot" class="notification-dot animate-pulse"></span>
+                    </button>
                     <div class="relative group">
-                        <button class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 hover:from-kawaii-pink/20 hover:to-kawaii-purple/20 transition-all duration-300 group-hover:scale-105">
-                            <span class="text-kawaii-purple font-medium">ようこそ, {{ session.name }}さん</span>
-                            <span class="text-xl group-hover:rotate-180 transition-transform duration-300"></span>
+                        <button class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-kawaii-gradient-start/10 to-kawaii-gradient-end/10 hover:from-kawaii-gradient-start/20 hover:to-kawaii-gradient-end/20 transition-all duration-300 group-hover:scale-105 shadow-kawaii hover:shadow-kawaii-lg">
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-kawaii-gradient-start to-kawaii-gradient-end font-medium">ようこそ, {{ session.name }}さん</span>
+                            <svg class="w-4 h-4 text-kawaii-purple transform transition-transform duration-300 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
                         </button>
-                        <div class="absolute right-0 w-56 mt-2 bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out z-50 border border-kawaii-pink/20 overflow-hidden">
+                        <div class="absolute right-0 w-56 mt-2 bg-white/95 backdrop-blur-lg rounded-2xl shadow-kawaii opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out z-50 border border-kawaii-pink/20 overflow-hidden transform origin-top scale-95 group-hover:scale-100">
                             <div class="p-2 space-y-1">
                                 <a href="{{ url_for('profile_view') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
                                     <span class="text-lg">👤</span>
                                     <span class="text-sm font-medium text-kawaii-dark">プロフィール閲覧</span>
+                                </a>
+                                
+                                <a href="{{ url_for('my_posts') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
+                                    <span class="text-lg">📝</span>
+                                    <span class="text-sm font-medium text-kawaii-dark">自分の投稿一覧</span>
                                 </a>
                                 <a href="{{ url_for('settings') }}" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl hover:bg-gradient-to-r from-kawaii-pink/10 to-kawaii-purple/10 transition-colors duration-300">
                                     <span class="text-lg">⚙️</span>
@@ -163,30 +325,20 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-2 text-sm">
-                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-blue/10">
-                            <span class="text-kawaii-blue font-medium">{{ session.student_id }}</span>
-                        </div>
-                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
-                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-purple/10">
-                            <span class="text-kawaii-purple font-medium">{{ session.school_name }}</span>
-                        </div>
-                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
-                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-pink/10">
-                            <span class="text-kawaii-pink font-medium">{{ session.department_name }}</span>
-                        </div>
-                        <div class="h-4 w-px bg-kawaii-purple/20"></div>
-                        <div class="flex items-center px-3 py-1.5 rounded-full bg-kawaii-mint/10">
-                            <span class="text-kawaii-green font-medium">{{ session.year }}年</span>
-                        </div>
-                    </div>
                 </div>
                 {% endif %}
             </div>
         </div>
     </nav>
+    
+    <div id="conversation-panel">
+        <div class="p-4 border-b">
+            <h3 class="text-lg font-bold text-kawaii-dark">メッセージ</h3>
+        </div>
+        <ul id="conversation-list" class="p-2 space-y-2 overflow-y-auto" style="height: calc(100% - 60px);">
+            </ul>
+    </div>
     <main class="relative">
-        <!-- Decorative background elements -->
         <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
             <div class="absolute top-0 right-0 w-96 h-96 bg-kawaii-pink/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
             <div class="absolute bottom-0 left-0 w-96 h-96 bg-kawaii-blue/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow delay-150"></div>
@@ -197,9 +349,277 @@
             {% block content %}{% endblock %}
         </div>
 
-        <!-- Floating decorative elements -->
         <div class="fixed bottom-4 right-4 text-4xl animate-bounce-slow opacity-50 pointer-events-none">🌟</div>
         <div class="fixed top-4 left-4 text-4xl animate-float opacity-50 pointer-events-none">🎀</div>
     </main>
-</body>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        // ハンバーガーメニューの制御
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            menu.classList.toggle('-translate-x-full');
+        }
+        
+        // 初期状態でメニューを閉じる
+        document.addEventListener('DOMContentLoaded', function() {
+            const menu = document.getElementById('sideMenu');
+            if (menu) {
+                menu.classList.add('-translate-x-full');
+            }
+        });
+    </script>
+    {% if session.user_id %}
+    <script>
+        const currentUserId = {{ session.user_id }};
+        const socket = io();
+
+        let unreadSenders = new Set(JSON.parse(localStorage.getItem('unreadSenders') || '[]'));
+        
+        function saveUnreadSenders() {
+            localStorage.setItem('unreadSenders', JSON.stringify(Array.from(unreadSenders)));
+        }
+        // --- 1. ウィンドウ状態管理 (localStorage) ---
+        function saveWindowStates() {
+            const states = {};
+            document.querySelectorAll('.dm-window').forEach(win => {
+                const recipientId = win.dataset.recipientId;
+                const state = win.classList.contains('minimized') ? 'minimized' : 'open';
+                states[recipientId] = {
+                    state: state,
+                    name: win.dataset.recipientName,
+                    icon_path: win.dataset.recipientIcon,
+                    top: win.style.top,
+                    left: win.style.left
+                };
+            });
+            localStorage.setItem('dmWindowStates', JSON.stringify(states));
+        }
+
+        function loadWindowStates() {
+            const states = JSON.parse(localStorage.getItem('dmWindowStates') || '{}');
+            Object.keys(states).forEach((recipientId, index) => {
+                const data = states[recipientId];
+                openDmWindow(recipientId, data.name, data.icon_path, data.state, data.top, data.left, index);
+            });
+        }
+
+        // --- 2. UI操作 ---
+        function toggleConversationPanel(event) {
+            if (event) event.preventDefault();
+            const panel = document.getElementById('conversation-panel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                document.getElementById('dm-notification-dot').style.display = 'none';
+                loadConversations();
+            }
+        }
+        
+        async function loadConversations() {
+            const response = await fetch('/api/conversations');
+            const conversations = await response.json();
+            const list = document.getElementById('conversation-list');
+            list.innerHTML = '';
+            conversations.forEach(user => {
+                const li = document.createElement('li');
+                li.id = `conversation-user-${user.user_id}`; // IDを追加
+                
+                // アイコン部分のHTMLを条件分岐で生成
+                const iconHtml = user.icon_path
+                    ? `<img src="${user.icon_path}" class="w-10 h-10 rounded-full mr-3 object-cover">`
+                    : `<div class="w-10 h-10 rounded-full mr-3 bg-gray-200 flex items-center justify-center text-xl">👤</div>`;
+
+                // 未読があるかチェック
+                const hasUnread = unreadSenders.has(user.user_id);
+
+                li.innerHTML = `
+                    <a href="#" onclick="openDmWindow(${user.user_id}, '${user.name}', '${user.icon_path || ''}'); toggleConversationPanel();" 
+                       class="flex items-center p-2 rounded-lg hover:bg-gray-100 relative">
+                        ${iconHtml}
+                        <span class="font-medium text-kawaii-dark">${user.name}</span>
+                        <span class="notification-dot" style="top: 8px; right: 8px; ${hasUnread ? 'display: block;' : ''}"></span>
+                    </a>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function openDmWindow(recipientId, recipientName, recipientIcon, initialState = 'open', top, left) {
+            recipientId = parseInt(recipientId, 10);
+
+                        // 未読リストから削除し、保存
+            unreadSenders.delete(recipientId);
+            saveUnreadSenders();
+
+            // 会話パネルの赤い点を非表示にする
+            const conversationDot = document.querySelector(`#conversation-user-${recipientId} .notification-dot`);
+            if(conversationDot) {
+                conversationDot.style.display = 'none';
+            }
+
+            if (document.getElementById(`dm-window-${recipientId}`)) {
+                const win = document.getElementById(`dm-window-${recipientId}`);
+                if (win.classList.contains('minimized')) {
+                    toggleMinimizeDmWindow(recipientId); // 最小化されていれば開く
+                }
+                return;
+            };
+
+            const dmWindow = document.createElement('div');
+            dmWindow.id = `dm-window-${recipientId}`;
+            dmWindow.className = 'dm-window';
+            dmWindow.dataset.recipientId = recipientId;
+            dmWindow.dataset.recipientName = recipientName;
+            dmWindow.dataset.recipientIcon = recipientIcon;
+
+            dmWindow.style.left = left || `${(document.querySelectorAll('.dm-window').length * 10) + 5}rem`;
+            dmWindow.style.top = top || '';
+
+            dmWindow.innerHTML = `
+                <div id="dm-header-${recipientId}" class="dm-window-header">
+                    <h3 class="font-bold">${recipientName}</h3>
+                    <div class="dm-window-controls space-x-2">
+                        <button onclick="toggleMinimizeDmWindow(${recipientId})">_</button>
+                        <button onclick="closeDmWindow(${recipientId})">&times;</button>
+                    </div>
+                </div>
+                <ul id="dm-messages-${recipientId}" class="dm-messages space-y-2"></ul>
+                <div class="p-2 border-t">
+                    <textarea id="dm-input-${recipientId}" rows="2" placeholder="メッセージを入力" class="w-full p-2 border rounded resize-none text-sm"></textarea>
+                </div>
+            `;
+
+            document.body.appendChild(dmWindow);
+            if (initialState === 'minimized') {
+                dmWindow.classList.add('minimized');
+            }
+            makeDraggable(dmWindow);
+
+            document.getElementById(`dm-input-${recipientId}`).addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendDm(recipientId);
+                }
+            });
+
+            fetch(`/api/messages/${recipientId}`).then(res => res.json()).then(messages => {
+                const messageList = document.getElementById(`dm-messages-${recipientId}`);
+                messageList.innerHTML = ''; // 履歴をクリアしてから追加
+                messages.forEach(msg => appendMessage(msg));
+                messageList.scrollTop = messageList.scrollHeight;
+            });
+            
+            saveWindowStates();
+        }
+
+        function closeDmWindow(recipientId) {
+            document.getElementById(`dm-window-${recipientId}`)?.remove();
+            saveWindowStates();
+        }
+        
+        function toggleMinimizeDmWindow(recipientId) {
+            const win = document.getElementById(`dm-window-${recipientId}`);
+            win.classList.toggle('minimized');
+            saveWindowStates();
+        }
+
+        function sendDm(recipientId) {
+            const input = document.getElementById(`dm-input-${recipientId}`);
+            if (input.value.trim()) {
+                socket.emit('send_dm', { recipient_id: recipientId, content: input.value.trim() });
+                input.value = '';
+            }
+        }
+        
+        function appendMessage(msg) {
+            const partnerId = msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id;
+            const messageList = document.getElementById(`dm-messages-${partnerId}`);
+            if (!messageList) return;
+
+            const li = document.createElement('li');
+            const isSender = msg.sender_id === currentUserId;
+            li.className = `flex ${isSender ? 'justify-end' : 'justify-start'}`;
+            li.innerHTML = `
+                <div class="max-w-xs">
+                    <div class="px-3 py-2 rounded-lg ${isSender ? 'bg-kawaii-pink text-white' : 'bg-gray-200'}">
+                        <p class="text-sm break-words">${msg.content}</p>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1 px-1 ${isSender ? 'text-right' : 'text-left'}">${msg.created_at}</div>
+                </div>
+            `;
+            messageList.appendChild(li);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // --- 3. Socket.IO イベントハンドラ ---
+        socket.on('receive_dm', (data) => {
+            const partnerId = data.sender_id === currentUserId ? data.recipient_id : data.sender_id;
+            const win = document.getElementById(`dm-window-${partnerId}`);
+            const panel = document.getElementById('conversation-panel');
+            
+            // ウィンドウが存在する場合のみメッセージを追加
+            if(win) {
+                appendMessage(data);
+            }
+
+            if (!win || win.classList.contains('minimized')) {
+                // グローバル通知ドットを表示
+                if (!panel.classList.contains('open')) {
+                    document.getElementById('dm-notification-dot').style.display = 'block';
+                }
+                
+                // 未読リストに追加して保存
+                unreadSenders.add(partnerId);
+                saveUnreadSenders();
+
+                // もし会話パネルが開いていたら、リストを再読み込みしてドットを即時反映
+                if (panel.classList.contains('open')) {
+                    loadConversations();
+                }
+            }
+            
+            // ウィンドウが開いていないか、最小化されている、かつパネルも開いていない場合に通知を表示
+            if ((!win || win.classList.contains('minimized')) && !panel.classList.contains('open')) {
+                document.getElementById('dm-notification-dot').style.display = 'block';
+            }
+        });
+
+        // --- 4. ヘルパー関数 ---
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = document.getElementById(`dm-header-${element.dataset.recipientId}`);
+            if (header) header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                saveWindowStates();
+            }
+        }
+
+        // --- 5. 初期化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWindowStates();
+        });
+    </script>
+    {% endif %}
+    </body>
 </html>

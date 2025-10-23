@@ -1,121 +1,268 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-    }
-
-    .post-list {
-        width: 100%;
-        max-width: 800px;
-        margin-top: 20px;
-    }
-
-    .post-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    .post-box p {
-        margin: 0;
-        line-height: 1.6;
-    }
-
-    .post-box small {
-        display: block;
-        margin-top: 10px;
-        color: #6c757d;
-        text-align: right;
-    }
-
-    .comment-box {
-        margin-top: 10px;
-        padding-left: 15px;
-        border-left: 2px solid #ccc;
-    }
-
-    .comment-form textarea {
-        width: 100%;
-        margin-top: 5px;
-        border-radius: 5px;
-        padding: 5px;
-        border: 1px solid #ccc;
-    }
-
-    .comment-form button {
-        margin-top: 5px;
-    }
-
-    .action-buttons {
-        margin-top: 10px;
-        display: flex;
-        justify-content: space-between;
-    }
-</style>
-
-<div class="container">
-    <h2>投稿管理</h2>
-    <p>すべての投稿を管理できます。</p>
-
-    <div class="post-form" style="max-width: 800px; width: 100%;">
-        <h3>新しい通知を投稿する</h3>
-        <form action="{{ url_for('admin_post_management') }}" method="POST">
-            <textarea name="content" rows="4" placeholder="通知内容を入力してください" required></textarea>
-            <label for="notice_scope">通知先:</label>
-            <select name="notice_scope" id="notice_scope">
-                {% if schools %}
-                    {% for school in schools %}
-                        <option value="notice{{ school.school_id }}">{{ school.school_name }}</option>
-                    {% endfor %}
-                {% endif %}
-            </select>
-            <button type="submit">通知を投稿</button>
-        </form>
+<div class="min-h-screen">
+    <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
+        id="sideMenu">
+        <div class="p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
+                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <nav class="space-y-4">
+                <a href="{{ url_for('admin_dashboard') }}" class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">📊</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
+                </a>
+                <a href="{{ url_for('user_management_select') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
+                    <span class="text-xl">👥</span>
+                    <span>ユーザー管理</span>
+                </a>
+                <a href="{{ url_for('admin_post_management') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
+                    <span class="text-xl">📝</span>
+                    <span>投稿管理</span>
+                </a>
+                <a href="{{ url_for('qa_page') }}" class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
+                    <span class="text-xl">❓</span>
+                    <span>Q&A管理</span>
+                </a>
+            </nav>
+        </div>
     </div>
 
-    <div class="post-list">
-        {% if posts %}
-            {% for post in posts %}
-                <div class="post-box" id="post-{{ post.post_id }}">
-                    <p>{{ post.content }}</p>
-                    <small>
-                        投稿者: {{ post.author.name if post.author else '不明' }} |
-                        投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }} |
-                        スコープ: {{ post.scope }}
-                    </small>
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+            <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+        
+        <div class="container mx-auto px-4 py-8 max-w-4xl">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">投稿管理</h2>
+            <p class="text-gray-600 mb-8">すべての投稿を管理できます。</p>
 
-                    <div class="action-buttons">
-                        <form action="{{ url_for('delete_post', post_id=post.post_id) }}" method="POST" onsubmit="return confirm('本当に削除しますか？')">
-                            <button type="submit">投稿を削除</button>
-                        </form>
-                    </div>
-
-                    {% if post.comments %}
-                    <div class="comment-box">
-                        {% for comment in post.comments %}
-                        <div>
-                            <strong>{{ comment.user.name if comment.user else "不明" }}</strong>:
-                            {{ comment.content }}<br>
-                            <small style="color: #888;">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}</small>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div>
+                    <label for="board_select" class="block text-sm font-medium text-gray-700 mb-2">掲示板で絞り込み:</label>
+                    <select id="board_select" class="block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">すべて</option>
+                        <option value="public" {% if current_scope == 'public' %}selected{% endif %}>校舎間掲示板</option>
+                        {% for school in schools %}
+                            <option value="school{{ school.school_id }}" {% if current_scope == 'school' + school.school_id|string %}selected{% endif %}>{{ school.school_name }}</option>
                         {% endfor %}
-                    </div>
-                    {% endif %}
+                        {% for school in schools %}
+                            <option value="notice{{ school.school_id }}" {% if current_scope == 'notice' + school.school_id|string %}selected{% endif %}>{{ school.school_name }} 通知</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            {% endfor %}
-        {% else %}
-            <div class="post-box">
-                <p>現在、投稿はありません。</p>
+                
+                <div>
+                    <label for="user_name_search" class="block text-sm font-medium text-gray-700 mb-2">ユーザー名で検索:</label>
+                    <form id="filterForm" action="{{ url_for('admin_post_management') }}" method="GET" class="relative">
+                        <div class="flex">
+                            <input type="text" id="user_name_search" placeholder="名前を入力して候補から選択..." class="flex-grow px-4 py-2 border-t border-b border-l border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10" value="{{ current_user_name or '' }}" autocomplete="off">
+                            <input type="hidden" name="user_name" id="selected_user_name" value="{{ current_user_name or '' }}">
+                            <input type="hidden" name="scope" id="selected_scope" value="{{ current_scope or '' }}">
+                            <button type="submit" class="px-3 py-2 bg-blue-600 text-white font-medium rounded-r-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 relative -ml-px">
+                                🔎
+                            </button>
+                        </div>
+                        <div id="suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg hidden"></div>
+                    </form>
+                </div>
             </div>
-        {% endif %}
+            
+            <script>
+                // スコープ選択が変更されたら、裏側のhiddenインプットに値を設定しフォームを送信
+                document.getElementById('board_select').addEventListener('change', function() {
+                    document.getElementById('selected_scope').value = this.value;
+                    document.getElementById('filterForm').submit();
+                });
+
+                const searchInput = document.getElementById('user_name_search');
+                const suggestionsContainer = document.getElementById('suggestions');
+                const selectedUserNameInput = document.getElementById('selected_user_name');
+
+                // 検索欄に入力があったときの処理
+                searchInput.addEventListener('input', async function() {
+                    const query = this.value;
+                    selectedUserNameInput.value = query; // ユーザーが直接入力した値を保持
+
+                    if (query.length < 1) {
+                        suggestionsContainer.innerHTML = '';
+                        suggestionsContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    // APIに問い合わせて候補を取得
+                    const response = await fetch(`{{ url_for('api_user_search') }}?q=${query}`);
+                    const users = await response.json();
+
+                    suggestionsContainer.innerHTML = '';
+                    if (users.length > 0) {
+                        users.forEach(user => {
+                            const item = document.createElement('div');
+                            item.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                            // 名前と学籍番号を両方表示するように変更
+                            item.textContent = `${user.name} (${user.student_id})`;
+                            // 候補がクリックされたときの処理
+                            item.addEventListener('click', function() {
+                                searchInput.value = user.name; // 見えている検索ボックスに名前を設定
+                                selectedUserNameInput.value = user.name; // 送信用のhiddenインプットに名前を設定
+                                suggestionsContainer.classList.add('hidden');
+                                document.getElementById('filterForm').submit(); // 選択後すぐに検索を実行
+                            });
+                            suggestionsContainer.appendChild(item);
+                        });
+                        suggestionsContainer.classList.remove('hidden');
+                    } else {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                });
+                
+                // 検索欄の外側をクリックしたら候補を閉じる
+                document.addEventListener('click', function(e) {
+                    if (!searchInput.contains(e.target)) {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                });
+            </script>
+            
+            <div class="space-y-4">
+                {% if posts %}
+                    {% for post in posts %}
+                        <div id="post-{{ post.post_id }}" class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
+                            <p class="text-gray-800 text-lg mb-4">{{ post.content }}</p>
+                            <div class="text-sm text-gray-500 mb-4">
+                                <span class="inline-block mr-4">投稿者: {{ post.author.name if post.author else '不明' }}</span>
+                                <span class="inline-block mr-4">投稿日時: {{ post.created_at.strftime('%Y年%m月%d日 %H:%M') }}</span>
+                                <span>スコープ: {{ post.scope }}</span>
+                            </div>
+                            <div class="flex justify-end">
+                                <form class="delete-post-form" data-post-id="{{ post.post_id }}" onsubmit="return confirm('本当に削除しますか？')">
+                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
+                                        投稿を削除
+                                    </button>
+                                </form>
+                                </div>
+                            {% if post.comments %}
+                            <div class="comment-box mt-4 border-t pt-4 space-y-2">
+                                {% for comment in post.comments %}
+                                <div class="text-sm text-gray-700 flex justify-between items-center py-1">
+                                    <div>
+                                        <strong class="font-semibold">{{ comment.user.name if comment.user else "不明" }}</strong>: {{ comment.content }}
+                                    </div>
+                                    <form action="{{ url_for('delete_comment', comment_id=comment.comment_id) }}" method="POST" onsubmit="return confirm('このコメントを本当に削除しますか？')">
+                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">削除</button>
+                                    </form>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-500 text-center">この条件に一致する投稿はありません。</p>
+                {% endif %}
+            </div>
+
+            {% if pagination %}
+            <div class="mt-8 flex justify-center items-center space-x-2">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('admin_post_management', page=pagination.prev_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        &laquo; 前へ
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                        &laquo; 前へ
+                    </span>
+                {% endif %}
+                
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        {% if pagination.page == page_num %}
+                            <span class="px-4 py-2 bg-blue-500 border border-blue-500 rounded-md text-sm font-medium text-white">{{ page_num }}</span>
+                        {% else %}
+                            <a href="{{ url_for('admin_post_management', page=page_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                {{ page_num }}
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <span class="px-4 py-2">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('admin_post_management', page=pagination.next_num, scope=current_scope, user_name=current_user_name) }}" class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        次へ &raquo;
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-400 cursor-not-allowed">
+                        次へ &raquo;
+                    </span>
+                {% endif %}
+            </div>
+            {% endif %}
+             </div>
     </div>
 </div>
+<script>
+    // ハンバーガーメニューの制御 (変更なし)
+    function toggleMenu() {
+        const menu = document.getElementById('sideMenu');
+        menu.classList.toggle('-translate-x-full');
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // すべての削除フォームを取得
+    const deleteForms = document.querySelectorAll('.delete-post-form');
+
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            // デフォルトのフォーム送信（画面遷移）をキャンセル
+            event.preventDefault();
+
+            // フォームのdata属性から投稿IDを取得
+            const postId = this.dataset.postId;
+
+            // fetch APIを使って非同期でサーバーに削除リクエストを送信
+            fetch(`/post/delete/${postId}`, {
+                method: 'POST',
+                headers: {
+                    // 必要に応じてCSRFトークンなどをヘッダーに追加
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json()) // サーバーからのレスポンスをJSONとして解析
+            .then(data => {
+                if (data.success) {
+                    // 削除に成功した場合、画面から該当の投稿要素を削除
+                    const postElement = document.getElementById(`post-${postId}`);
+                    if (postElement) {
+                        // アニメーションを付けてスムーズに消す（任意）
+                        postElement.style.transition = 'opacity 0.5s ease';
+                        postElement.style.opacity = '0';
+                        setTimeout(() => postElement.remove(), 500);
+                    }
+                } else {
+                    // 削除に失敗した場合、エラーメッセージを表示
+                    alert('エラー: ' + data.message);
+                }
+            })
+            .catch(error => {
+                // 通信エラーなどが発生した場合
+                console.error('削除処理中にエラーが発生しました:', error);
+                alert('削除処理中にエラーが発生しました。');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}
