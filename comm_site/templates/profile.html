@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
+        id="sideMenu">
+        <!-- メニュー中身を追加可能 -->
+    </div>
 <div class="max-w-3xl mx-auto px-4 py-8">
+    <button onclick="toggleMenu()" class="fixed top-4 left-4 z-50 p-2 bg-white/90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+            <svg class="w-6 h-6 text-kawaii-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
     <div class="relative mb-[-75px]">
         {% if user.header_path %}
             <img src="{{ url_for('uploaded_file', filename=user.header_path) }}" alt="ヘッダー画像" class="w-full h-48 object-cover rounded-t-lg shadow-md">
@@ -254,5 +263,12 @@ function toggleBlock(userId) {
     });
 }
 // 🔼 追加完了
+
+function toggleMenu() {
+    const menu = document.getElementById('sideMenu');
+    if (menu) {
+        menu.classList.toggle('-translate-x-full');
+    }
+}
 </script>
 {% endblock %}

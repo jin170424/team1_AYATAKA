@@ -295,6 +295,7 @@
                         <svg class="w-6 h-6 text-kawaii-purple transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         <span id="dm-notification-dot" class="notification-dot animate-pulse"></span>
                     </button>
+                    <div id="dm-container" class="p-4 space-y-2 overflow-y-auto" style="height: calc(100% - 60px);"></div>
                     <div class="relative group">
                         <button class="flex items-center space-x-2 px-4 py-2 rounded-full bg-gradient-to-r from-kawaii-gradient-start/10 to-kawaii-gradient-end/10 hover:from-kawaii-gradient-start/20 hover:to-kawaii-gradient-end/20 transition-all duration-300 group-hover:scale-105 shadow-kawaii hover:shadow-kawaii-lg">
                             <span class="text-transparent bg-clip-text bg-gradient-to-r from-kawaii-gradient-start to-kawaii-gradient-end font-medium">ようこそ, {{ session.name }}さん</span>
@@ -332,12 +333,18 @@
     </nav>
     
     <div id="conversation-panel">
-        <div class="p-4 border-b">
-            <h3 class="text-lg font-bold text-kawaii-dark">メッセージ</h3>
-        </div>
-        <ul id="conversation-list" class="p-2 space-y-2 overflow-y-auto" style="height: calc(100% - 60px);">
-            </ul>
+    <div class="p-4 border-b flex justify-between items-center">
+        <h3 class="text-lg font-bold text-kawaii-dark">メッセージ</h3>
+        <!-- ✖ 閉じるボタン -->
+        <button onclick="toggleConversationPanel()" 
+                class="text-gray-500 hover:text-kawaii-pink text-2xl font-bold transition-all duration-200">
+            &times;
+        </button>
     </div>
+    <ul id="conversation-list" class="p-2 space-y-2 overflow-y-auto" 
+        style="height: calc(100% - 60px);">
+    </ul>
+</div>
     <main class="relative">
         <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
             <div class="absolute top-0 right-0 w-96 h-96 bg-kawaii-pink/5 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
@@ -433,8 +440,10 @@
                 const hasUnread = unreadSenders.has(user.user_id);
 
                 li.innerHTML = `
-                    <a href="#" onclick="openDmWindow(${user.user_id}, '${user.name}', '${user.icon_path || ''}'); toggleConversationPanel();" 
-                       class="flex items-center p-2 rounded-lg hover:bg-gray-100 relative">
+                    <a href="javascript:void(0)" 
+   onclick="openDmWindow(${user.user_id}, '${user.name}', '${user.icon_path || ''}'); toggleConversationPanel();" 
+   class="flex items-center p-2 rounded-lg hover:bg-gray-100 relative">
+
                         ${iconHtml}
                         <span class="font-medium text-kawaii-dark">${user.name}</span>
                         <span class="notification-dot" style="top: 8px; right: 8px; ${hasUnread ? 'display: block;' : ''}"></span>
@@ -445,72 +454,148 @@
         }
 
         function openDmWindow(recipientId, recipientName, recipientIcon, initialState = 'open', top, left) {
-            recipientId = parseInt(recipientId, 10);
+    recipientId = parseInt(recipientId, 10);
 
-                        // 未読リストから削除し、保存
-            unreadSenders.delete(recipientId);
-            saveUnreadSenders();
+    unreadSenders.delete(recipientId);
+    saveUnreadSenders();
 
-            // 会話パネルの赤い点を非表示にする
-            const conversationDot = document.querySelector(`#conversation-user-${recipientId} .notification-dot`);
-            if(conversationDot) {
-                conversationDot.style.display = 'none';
-            }
+    const conversationDot = document.querySelector(`#conversation-user-${recipientId} .notification-dot`);
+    if (conversationDot) conversationDot.style.display = 'none';
 
-            if (document.getElementById(`dm-window-${recipientId}`)) {
-                const win = document.getElementById(`dm-window-${recipientId}`);
-                if (win.classList.contains('minimized')) {
-                    toggleMinimizeDmWindow(recipientId); // 最小化されていれば開く
-                }
-                return;
-            };
+    const existing = document.getElementById(`dm-window-${recipientId}`);
+    if (existing) {
+        existing.classList.remove('hidden');
+        return;
+    }
 
-            const dmWindow = document.createElement('div');
-            dmWindow.id = `dm-window-${recipientId}`;
-            dmWindow.className = 'dm-window';
-            dmWindow.dataset.recipientId = recipientId;
-            dmWindow.dataset.recipientName = recipientName;
-            dmWindow.dataset.recipientIcon = recipientIcon;
+    const dmWindow = document.createElement('div');
+    dmWindow.id = `dm-window-${recipientId}`;
+    dmWindow.className = 'dm-window';
+    dmWindow.dataset.recipientId = recipientId;
+    dmWindow.dataset.recipientName = recipientName;
+    dmWindow.dataset.recipientIcon = recipientIcon;
 
-            dmWindow.style.left = left || `${(document.querySelectorAll('.dm-window').length * 10) + 5}rem`;
-            dmWindow.style.top = top || '';
+    // 🟢 位置とサイズを「右パネルと同じ」に変更
+    dmWindow.style.position = 'fixed';
+    dmWindow.style.top = '4rem';                // ナビバー高さ分
+    dmWindow.style.right = '0';
+    dmWindow.style.width = '300px';             // 会話一覧と同じ幅
+    dmWindow.style.height = 'calc(100% - 4rem)';
+    dmWindow.style.zIndex = '2100';
+    dmWindow.style.borderLeft = '1px solid #eee';
+    dmWindow.style.borderRadius = '0';
+    dmWindow.style.boxShadow = 'none';
 
-            dmWindow.innerHTML = `
-                <div id="dm-header-${recipientId}" class="dm-window-header">
-                    <h3 class="font-bold">${recipientName}</h3>
-                    <div class="dm-window-controls space-x-2">
-                        <button onclick="toggleMinimizeDmWindow(${recipientId})">_</button>
-                        <button onclick="closeDmWindow(${recipientId})">&times;</button>
-                    </div>
-                </div>
-                <ul id="dm-messages-${recipientId}" class="dm-messages space-y-2"></ul>
-                <div class="p-2 border-t">
-                    <textarea id="dm-input-${recipientId}" rows="2" placeholder="メッセージを入力" class="w-full p-2 border rounded resize-none text-sm"></textarea>
-                </div>
-            `;
+    dmWindow.innerHTML = `
+        <div id="dm-header-${recipientId}" class="dm-window-header" style="border-radius: 0;">
+            <div class="flex items-center space-x-2">
+                ${recipientIcon
+                    ? `<img src="${recipientIcon}" class="w-8 h-8 rounded-full object-cover">`
+                    : `<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-lg">👤</div>`}
+                <h3 class="font-bold">${recipientName}</h3>
+            </div>
+            <div class="dm-window-controls space-x-2">
+                <button onclick="closeDmWindow(${recipientId})">&times;</button>
+            </div>
+        </div>
 
-            document.body.appendChild(dmWindow);
-            if (initialState === 'minimized') {
-                dmWindow.classList.add('minimized');
-            }
-            makeDraggable(dmWindow);
+        <ul id="dm-messages-${recipientId}" class="dm-messages space-y-2"></ul>
 
-            document.getElementById(`dm-input-${recipientId}`).addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendDm(recipientId);
-                }
-            });
+        <div class="p-2 border-t relative">
+            <div class="flex items-center space-x-2">
+                <button onclick="toggleStampPanel(${recipientId})" class="text-2xl">😊</button>
+                <textarea id="dm-input-${recipientId}" rows="2" placeholder="メッセージを入力"
+                    class="flex-1 p-2 border rounded-lg resize-none text-sm"></textarea>
+                <button onclick="sendDm(${recipientId})"
+                    class="px-3 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple">送信</button>
+            </div>
 
-            fetch(`/api/messages/${recipientId}`).then(res => res.json()).then(messages => {
-                const messageList = document.getElementById(`dm-messages-${recipientId}`);
-                messageList.innerHTML = ''; // 履歴をクリアしてから追加
-                messages.forEach(msg => appendMessage(msg));
-                messageList.scrollTop = messageList.scrollHeight;
-            });
-            
-            saveWindowStates();
-        }
+            <div id="stamp-panel-${recipientId}"
+    class="absolute bottom-14 left-2 bg-white border rounded-lg shadow-lg p-2 w-64 hidden z-50">
+    
+    <!-- 🟣 タブメニュー -->
+    <div class="flex justify-around mb-2 border-b pb-1">
+        <button class="tab-btn-${recipientId} text-xl active" onclick="showStampCategory(${recipientId}, 'emotion')">😊</button>
+        <button class="tab-btn-${recipientId} text-xl" onclick="showStampCategory(${recipientId}, 'reaction')">🎉</button>
+        <button class="tab-btn-${recipientId} text-xl" onclick="showStampCategory(${recipientId}, 'reply')">👍</button>
+        <button class="tab-btn-${recipientId} text-xl" onclick="showStampCategory(${recipientId}, 'heart')">💕</button>
+    </div>
+
+    <!-- 😊 感情 -->
+    <div id="stamp-emotion-${recipientId}" class="grid grid-cols-5 gap-2">
+        <button onclick="sendStamp(${recipientId}, '😊')" class="text-2xl">😊</button>
+        <button onclick="sendStamp(${recipientId}, '😂')" class="text-2xl">😂</button>
+        <button onclick="sendStamp(${recipientId}, '🥺')" class="text-2xl">🥺</button>
+        <button onclick="sendStamp(${recipientId}, '🥰')" class="text-2xl">🥰</button>
+        <button onclick="sendStamp(${recipientId}, '😇')" class="text-2xl">😇</button>
+        <button onclick="sendStamp(${recipientId}, '🤗')" class="text-2xl">🤗</button>
+        <button onclick="sendStamp(${recipientId}, '😴')" class="text-2xl">😴</button>
+        <button onclick="sendStamp(${recipientId}, '😠')" class="text-2xl">😠</button>
+        <button onclick="sendStamp(${recipientId}, '😞')" class="text-2xl">😞</button>
+        <button onclick="sendStamp(${recipientId}, '😭')" class="text-2xl">😭</button>
+    </div>
+
+    <!-- 🎉 リアクション -->
+    <div id="stamp-reaction-${recipientId}" class="grid grid-cols-5 gap-2 hidden">
+        <button onclick="sendStamp(${recipientId}, '🎉')" class="text-2xl">🎉</button>
+        <button onclick="sendStamp(${recipientId}, '✍️')" class="text-2xl">✍️</button>
+        <button onclick="sendStamp(${recipientId}, '👀')" class="text-2xl">👀</button>
+        <button onclick="sendStamp(${recipientId}, '🔥')" class="text-2xl">🔥</button>
+        <button onclick="sendStamp(${recipientId}, '💪')" class="text-2xl">💪</button>
+        <button onclick="sendStamp(${recipientId}, '💡')" class="text-2xl">💡</button>
+        <button onclick="sendStamp(${recipientId}, '🎀')" class="text-2xl">🎀</button>
+        <button onclick="sendStamp(${recipientId}, '🎮')" class="text-2xl">🎮</button>
+        <button onclick="sendStamp(${recipientId}, '🌹')" class="text-2xl">🌹</button>
+        <button onclick="sendStamp(${recipientId}, '🌸')" class="text-2xl">🌸</button>
+    </div>
+
+    <!-- 👍 返事 -->
+    <div id="stamp-reply-${recipientId}" class="grid grid-cols-5 gap-2 hidden">
+        <button onclick="sendStamp(${recipientId}, '👍')" class="text-2xl">👍</button>
+        <button onclick="sendStamp(${recipientId}, '👎')" class="text-2xl">👎</button>
+        <button onclick="sendStamp(${recipientId}, '🙆‍♀️')" class="text-2xl">🙆‍♀️</button>
+        <button onclick="sendStamp(${recipientId}, '🙅‍♀️')" class="text-2xl">🙅‍♀️</button>
+        <button onclick="sendStamp(${recipientId}, '🙇‍♀️')" class="text-2xl">🙇‍♀️</button>
+        <button onclick="sendStamp(${recipientId}, '🫶')" class="text-2xl">🫶</button>
+        <button onclick="sendStamp(${recipientId}, '👋')" class="text-2xl">👋</button>
+        <button onclick="sendStamp(${recipientId}, '🙌')" class="text-2xl">🙌</button>
+        <button onclick="sendStamp(${recipientId}, '👏')" class="text-2xl">👏</button>
+        <button onclick="sendStamp(${recipientId}, '🫵')" class="text-2xl">🫵</button>
+    </div>
+
+    <!-- 💕 ハート -->
+    <div id="stamp-heart-${recipientId}" class="grid grid-cols-5 gap-2 hidden">
+        <button onclick="sendStamp(${recipientId}, '❤️')" class="text-2xl">❤️</button>
+        <button onclick="sendStamp(${recipientId}, '💖')" class="text-2xl">💖</button>
+        <button onclick="sendStamp(${recipientId}, '💞')" class="text-2xl">💞</button>
+        <button onclick="sendStamp(${recipientId}, '❣️')" class="text-2xl">❣️</button>
+        <button onclick="sendStamp(${recipientId}, '💓')" class="text-2xl">💓</button>
+        <button onclick="sendStamp(${recipientId}, '🩷')" class="text-2xl">🩷</button>
+        <button onclick="sendStamp(${recipientId}, '🧡')" class="text-2xl">🧡</button>
+        <button onclick="sendStamp(${recipientId}, '💛')" class="text-2xl">💛</button>
+        <button onclick="sendStamp(${recipientId}, '💙')" class="text-2xl">💙</button>
+        <button onclick="sendStamp(${recipientId}, '💜')" class="text-2xl">💜</button>
+    </div>
+</div>
+
+        </div>
+    `;
+
+    document.body.appendChild(dmWindow);
+
+    // 🟢 一覧パネルを閉じる（場所が被るため）
+    document.getElementById('conversation-panel').classList.remove('open');
+
+    fetch(`/api/messages/${recipientId}`)
+        .then(res => res.json())
+        .then(messages => {
+            const messageList = document.getElementById(`dm-messages-${recipientId}`);
+            messageList.innerHTML = '';
+            messages.forEach(msg => appendMessage(msg));
+            messageList.scrollTop = messageList.scrollHeight;
+        });
+}
+
 
         function closeDmWindow(recipientId) {
             document.getElementById(`dm-window-${recipientId}`)?.remove();
@@ -619,6 +704,37 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadWindowStates();
         });
+
+// スタンプパネルの開閉
+function toggleStampPanel(recipientId) {
+    const panel = document.getElementById(`stamp-panel-${recipientId}`);
+    panel.classList.toggle('hidden'); // ← ボタンで開閉を切り替え
+}
+
+// スタンプ送信（押しても閉じない）
+function sendStamp(recipientId, emoji) {
+    const input = document.getElementById(`dm-input-${recipientId}`);
+    if (input) {
+        input.value += emoji;  // 入力欄にスタンプ追加
+        input.focus();
+    }
+    // パネルは閉じないように変更
+}
+
+function showStampCategory(recipientId, category) {
+    const categories = ['emotion', 'reaction', 'reply', 'heart'];
+    categories.forEach(cat => {
+        const div = document.getElementById(`stamp-${cat}-${recipientId}`);
+        const tabBtns = document.getElementsByClassName(`tab-btn-${recipientId}`);
+        if (div) div.classList.add('hidden');
+    });
+
+    // 選択中のカテゴリを表示
+    const activeDiv = document.getElementById(`stamp-${category}-${recipientId}`);
+    if (activeDiv) activeDiv.classList.remove('hidden');
+}
+
+
     </script>
     {% endif %}
     </body>
