@@ -26,7 +26,17 @@ if not os.path.exists(UPLOAD_FOLDER):
 # ====== 🔼 追加完了 🔼 ======
 
 # ====== 既存の設定 ======
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
+db_url = os.environ.get("DATABASE_URL")
+
+if db_url:
+    # RenderのデータベースURLは 'postgres://' で始まることがありますが、
+    # SQLAlchemyは 'postgresql://' を推奨するため、置換します。
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+else:
+    # 環境変数がない場合（ローカル実行時など）は、ローカルの設定を使う
+    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)

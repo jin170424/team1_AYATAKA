@@ -1,8 +1,8 @@
-"""Initial migration from scratch
+"""Initial complete migration for Render
 
-Revision ID: b6bd71deaccd
+Revision ID: c7b61aab95b6
 Revises: 
-Create Date: 2025-10-08 12:05:48.218288
+Create Date: 2025-10-27 10:22:55.980442
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b6bd71deaccd'
+revision = 'c7b61aab95b6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -48,6 +48,13 @@ def upgrade():
     sa.ForeignKeyConstraint(['school_id'], ['school.school_id'], ),
     sa.PrimaryKeyConstraint('user_id'),
     sa.UniqueConstraint('student_id')
+    )
+    op.create_table('blocks',
+    sa.Column('blocker_id', sa.Integer(), nullable=False),
+    sa.Column('blocked_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['blocked_id'], ['User.user_id'], ),
+    sa.ForeignKeyConstraint(['blocker_id'], ['User.user_id'], ),
+    sa.PrimaryKeyConstraint('blocker_id', 'blocked_id')
     )
     op.create_table('direct_message',
     sa.Column('message_id', sa.Integer(), nullable=False),
@@ -134,6 +141,7 @@ def downgrade():
     op.drop_table('post')
     op.drop_table('follow')
     op.drop_table('direct_message')
+    op.drop_table('blocks')
     op.drop_table('User')
     op.drop_table('school')
     op.drop_table('department')
