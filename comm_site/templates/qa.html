@@ -4,68 +4,7 @@
     <!-- ハンバーガーメニュー -->
     <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg -translate-x-full transition-transform duration-300"
         id="sideMenu">
-        <div class="p-6 space-y-6">
-            <div class="flex items-center justify-between">
-                <h3 class="text-xl font-bold text-kawaii-dark">メニュー</h3>
-                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-            
-            <nav class="space-y-4">
-                {% if session.role == 'admin' %}
-                <a href="{{ url_for('admin_dashboard') }}" 
-                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
-                    <span class="text-xl">📊</span>
-                    <span class="font-medium group-hover:text-kawaii-pink">管理者ダッシュボード</span>
-                </a>
-                <a href="{{ url_for('user_management') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
-                    <span class="text-xl">👥</span>
-                    <span>ユーザー管理</span>
-                </a>
-                <a href="{{ url_for('admin_post_management') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
-                    <span class="text-xl">📝</span>
-                    <span>投稿管理</span>
-                </a>
-                <a href="{{ url_for('qa_page') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
-                    <span class="text-xl">❓</span>
-                    <span>Q&A管理</span>
-                </a>
-                {% else %}
-                <a href="{{ url_for('school_wide_board') }}" 
-                   class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
-                    <span class="text-xl">🏫</span>
-                    <span class="font-medium group-hover:text-kawaii-pink">校舎間掲示板</span>
-                </a>
-                <a href="{{ url_for('school_specific_board') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                    <span>{{ session.get('school_name', '用掲示板') }}</span>
-                </a>
-                <a href="{{ url_for('notice_board') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <span>通知用掲示板</span>
-                </a>
-                <a href="{{ url_for('qa_page') }}"
-                   class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span>Q&A</span>
-                </a>
-                {% endif %}
-            </nav>
-        </div>
+        
     </div>
 
     <!-- メインコンテンツ -->
@@ -148,17 +87,29 @@
                     <div class="mb-4">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center space-x-2">
-                                <span class="text-lg">👤</span>
-                                <span class="font-medium text-kawaii-dark">{{ qa.user.name }}</span>
-                                {% if current_tab == 'unanswered' %}
-                                <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">未回答</span>
-                                {% else %}
-                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">回答済み</span>
-                                {% endif %}
-                                {% if qa.user_id == session.user_id %}
-                                <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">自分の質問</span>
-                                {% endif %}
-                            </div>
+    <span class="text-lg">👤</span>
+    <span class="font-medium text-kawaii-dark">{{ qa.user.name }}</span>
+
+    {# ✅ DMボタン：必要なときだけ表示、テキストも入れる #}
+    {% if qa.user_id != session.user_id and session.role != 'admin' %}
+    <button
+        onclick="openDmWindow({{ qa.user_id }}, '{{ qa.user.name }}', '{{ qa.user.icon_path or '' }}')"
+        class="ml-2 px-2 py-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition duration-200">
+        💌 DM
+    </button>
+    {% endif %}
+
+    {% if current_tab == 'unanswered' %}
+    <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">未回答</span>
+    {% else %}
+    <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">回答済み</span>
+    {% endif %}
+
+    {% if qa.user_id == session.user_id and session.role != 'admin' %}
+    <span class="px-2 py-1 bg-blue-100 text-blue-600 text-xs font-medium rounded-full">自分の質問</span>
+    {% endif %}
+</div>
+
                             <div class="flex space-x-2">
                                 {% if current_tab == 'unanswered' and session.role == 'admin' %}
                                 <button 
@@ -336,27 +287,17 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 <script>
-    const socket = io();
-
-    // ハンバーガーメニューの制御
-    function toggleMenu() {
-        const menu = document.getElementById('sideMenu');
-        menu.classList.toggle('-translate-x-full');
-    }
-    
-    // 初期状態でメニューを閉じる
-    document.addEventListener('DOMContentLoaded', function() {
-        const menu = document.getElementById('sideMenu');
-        menu.classList.add('-translate-x-full');
-    });
-
+    //const socket = io();
+    const qaSocket = window.socket || io(); 
+    // 質問投稿
     function askQuestion() {
         const input = document.getElementById('question-input');
         if (input.value.trim()) {
-            socket.emit('ask_question', {question: input.value});
+            qaSocket.emit('ask_question', {question: input.value});
             input.value = '';
         }
     }
+
 
     // 管理者用の回答フォーム表示
     function showReplyForm(qaId) {
@@ -379,7 +320,7 @@
     function postAnswer(qaId) {
         const input = document.getElementById(`answer-input-${qaId}`);
         if (input && input.value.trim()) {
-            socket.emit('post_answer', {
+            qaSocket.emit('post_answer', {
                 qa_id: qaId,
                 answer: input.value
             });
@@ -415,7 +356,7 @@
     function updateAnswer(qaId) {
         const input = document.getElementById(`edit-answer-input-${qaId}`);
         if (input && input.value.trim()) {
-            socket.emit('update_answer', {
+            qaSocket.emit('update_answer', {
                 qa_id: qaId,
                 answer: input.value
             });
@@ -425,7 +366,7 @@
     // Q&A削除（管理者または自分の質問のみ）
     function deleteQA(qaId) {
         if (confirm('このQ&Aを削除してもよろしいですか？')) {
-            socket.emit('delete_qa', {qa_id: qaId});
+            qaSocket.emit('delete_qa', {qa_id: qaId});
         }
     }
 
@@ -442,9 +383,10 @@
         }
     }
 
-    socket.on('new_question', function(data) {
+    qaSocket.on('new_question', function(data) {
         // 現在のタブが未回答の場合のみ、新しい質問を追加
         const currentTab = '{{ current_tab }}';
+        window.location.reload();
         if (currentTab === 'unanswered') {
             const qaList = document.getElementById('qa-list');
             const qaItem = document.createElement('div');
@@ -511,12 +453,12 @@
         updateCounts(data.unanswered_count, data.answered_count);
     });
 
-    socket.on('new_answer', function(data) {
+    qaSocket.on('new_answer', function(data) {
         // 回答が追加された場合、ページをリロードして正しいタブに移動
         window.location.href = "{{ url_for('qa_page', tab='answered', page=1) }}";
     });
 
-    socket.on('answer_updated', function(data) {
+    qaSocket.on('answer_updated', function(data) {
         const answerText = document.getElementById(`answer-text-${data.qa_id}`);
         const editForm = document.getElementById(`edit-form-${data.qa_id}`);
         const answerDisplay = document.getElementById(`answer-display-${data.qa_id}`);
@@ -531,7 +473,7 @@
         }
     });
 
-    socket.on('qa_deleted', function(data) {
+    qaSocket.on('qa_deleted', function(data) {
         const qaItem = document.querySelector(`[data-qa-id="${data.qa_id}"]`);
         if (qaItem) {
             qaItem.remove();

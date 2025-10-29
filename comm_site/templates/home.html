@@ -4,48 +4,7 @@
 <div class="min-h-screen">
     <div class="fixed left-0 top-0 h-full w-64 bg-white/90 backdrop-blur-lg shadow-lg transform transition-transform duration-300 -translate-x-full"
         id="sideMenu">
-        <div class="p-6 space-y-6">
-            <div class="flex items-center justify-between">
-                <button onclick="toggleMenu()" class="text-kawaii-dark hover:text-kawaii-pink">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <nav class="space-y-4">
-                <a href="{{ url_for('school_wide_board') }}"
-                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
-                    <span class="text-xl">🏫</span>
-                    <span class="font-medium group-hover:text-kawaii-pink">校舎間掲示板</span>
-                </a>
-                <a href="{{ url_for('school_specific_board') }}"
-                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-secondary flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    <span>{{ session.get('school_name', '用掲示板') }}</span>
-                </a>
-                <a href="{{ url_for('notice_board') }}"
-                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-modern-accent flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span>通知用掲示板</span>
-                </a>
-                <a href="{{ url_for('qa_page') }}"
-                    class="w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-modern-dark hover:text-pastel-purple flex items-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Q&A</span>
-                </a>
-            </nav>
-        </div>
+        
     </div>
 
     <div class="max-w-4xl mx-auto px-4 py-8">
@@ -63,12 +22,28 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' %}
+        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' and
+        current_scope != 'following' %}
         <div class="max-w-2xl mx-auto mb-8">
             <form action="{{ url_for('submit_post') }}" method="POST"
                 class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
-                <textarea name="content" rows="4" placeholder="投稿内容を入力してください" required
+                <textarea name="content" id="post-content" rows="4" placeholder="投稿内容を入力してください" required
                     class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
+
+                <!-- スタンプ表示ボタン -->
+                <button type="button" onclick="toggleStampPicker()"
+                    class="mt-2 px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
+                    😄 
+                </button>
+
+                <!-- スタンプパレット（最初は非表示） -->
+                <div id="stamp-picker" class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                    {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                    <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
+                        onclick="addEmojiToPost('{{ emoji }}')">{{ emoji }}</span>
+                    {% endfor %}
+                </div>
+
                 <input type="hidden" name="scope" value="{{ current_scope }}">
                 <button type="submit"
                     class="mt-3 px-6 py-2.5 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 flex items-center space-x-2 mx-auto">
@@ -84,32 +59,92 @@
             {% for post in posts %}
             <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
                 <div class="mb-4">
-                    <p class="text-lg text-kawaii-dark leading-relaxed" id="post-content-{{ post.post_id }}">{{ post.content }}</p>
+                    <p class="text-lg text-kawaii-dark leading-relaxed" id="post-content-{{ post.post_id }}">{{
+                        post.content }}</p>
+
+                    <div class="mt-4">
+                        <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
+
+                            {% set display_reactions = {} %}
+
+                            {% if display_reactions.update(post.reaction_counts) %}{% endif %}
+
+                            {% for emoji, count in display_reactions.items() %}
+                            {% if count > 0 %}
+                            <button class="reaction-button {% if emoji in post.user_reacted_emojis %}active{% endif %}"
+                                onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')"
+                                id="reaction-button-{{ post.post_id }}-{{ emoji }}">
+                                <span class="reaction-emoji">{{ emoji }}</span>
+                                <span class="reaction-count" id="reaction-count-{{ post.post_id }}-{{ emoji }}">{{ count
+                                    }}</span>
+                            </button>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <button class="text-sm text-kawaii-dark hover:text-kawaii-pink flex items-center gap-2"
+                            onclick="showEmojiPicker({{ post.post_id }})">
+                            <span>😀</span>
+                            <span>リアクションを追加</span>
+                        </button>
+
+                        <div class="reaction-emoji-picker mt-2" id="emoji-picker-{{ post.post_id }}">
+                            {% for emoji in ['👍', '❤️', '😊', '👏', '🎉', '🌟', '💡','😄', '🥰','💪', '🙏', '🔥'] %}
+                            <span class="reaction-emoji" onclick="toggleReaction({{ post.post_id }}, '{{ emoji }}')">{{
+                                emoji }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
 
                     <div id="edit-form-post-{{ post.post_id }}" class="hidden mt-2">
                         <textarea rows="4" required
                             class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"
                             id="edit-textarea-post-{{ post.post_id }}">{{ post.content }}</textarea>
-                        <div class="flex justify-end space-x-2 mt-2">
+
+                        <!-- 保存ボタン行（スタンプボタンを保存の左に配置） -->
+                        <div class="flex justify-end items-center space-x-2 mt-2">
+                            <!-- スタンプ選択ボタン（保存の左） -->
+                            <button type="button" onclick="toggleEditStampPicker({{ post.post_id }})"
+                                class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow hover:bg-pink-200 transition text-sm">
+                                😄 
+                            </button>
+
+                            <!-- 保存 -->
                             <button type="button" onclick="savePostEdit({{ post.post_id }})"
                                 class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 保存
                             </button>
+
+                            <!-- キャンセル -->
                             <button type="button" onclick="cancelPostEdit({{ post.post_id }})"
                                 class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 キャンセル
                             </button>
                         </div>
+
+                        <!-- スタンプパレット（初期は非表示） -->
+                        <div id="edit-stamp-picker-{{ post.post_id }}"
+                            class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                            {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                            <span class="cursor-pointer text-xl hover:scale-110 transition-transform"
+                                onclick="addEmojiToEdit({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                            {% endfor %}
+                        </div>
                     </div>
 
+
                     <div class="mt-3 text-sm text-kawaii-dark/60 flex items-center space-x-2">
-                        <a href="{{ url_for('profile_view', user_id=post.author.user_id) if post.author else '#' }}" class="flex items-center space-x-2 group">
+                        <a href="{{ url_for('profile_view', user_id=post.author.user_id) if post.author else '#' }}"
+                            class="flex items-center space-x-2 group">
                             {% if post.author and post.author.icon_path %}
-                                <img src="{{ url_for('uploaded_file', filename=post.author.icon_path) }}" alt="{{ post.author.name }}のアイコン" class="w-8 h-8 rounded-full object-cover border border-gray-200 group-hover:opacity-80 transition-opacity">
+                            <img src="{{ url_for('uploaded_file', filename=post.author.icon_path) }}"
+                                alt="{{ post.author.name }}のアイコン"
+                                class="w-8 h-8 rounded-full object-cover border border-gray-200 group-hover:opacity-80 transition-opacity">
                             {% else %}
-                                <div class="w-8 h-8 rounded-full bg-gray-300 border border-gray-200 flex items-center justify-center group-hover:opacity-80 transition-opacity">
-                                    <span class="text-lg">👤</span>
-                                </div>
+                            <div
+                                class="w-8 h-8 rounded-full bg-gray-300 border border-gray-200 flex items-center justify-center group-hover:opacity-80 transition-opacity">
+                                <span class="text-lg">👤</span>
+                            </div>
                             {% endif %}
                             <span class="group-hover:text-kawaii-pink transition-colors">
                                 {{ post.author.name if post.author else '不明' }}
@@ -125,7 +160,6 @@
                     </div>
                 </div>
 
-                {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                 <div class="mt-2 flex items-center space-x-4">
                     {% if session["user_id"] == post.user_id %}
                     <button onclick="editPost({{ post.post_id }})"
@@ -134,14 +168,22 @@
                         <span class="text-sm font-medium">編集</span>
                     </button>
                     {% endif %}
+                    {% if session["user_id"] == post.user_id or session["role"] == "admin" %}
                     <button onclick="deletePost({{ post.post_id }})"
                         class="text-kawaii-pink hover:text-kawaii-purple transition duration-200 flex items-center space-x-1">
                         <span class="text-sm">🗑️</span>
                         <span class="text-sm font-medium">削除</span>
                     </button>
-                </div>
-                {% endif %}
+                    {% endif %}
 
+                    {% if session["user_id"] != post.user_id and session["role"] != "admin" %}
+                    <button onclick="report('post', {{ post.post_id }})"
+                        class="text-gray-500 hover:text-red-600 transition duration-200 flex items-center space-x-1">
+                        <span class="text-sm">🚩</span>
+                        <span class="text-sm font-medium">通報</span>
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="mt-4">
                     {% if post.comments %}
                     <button onclick="toggleComments('comments-{{ post.post_id }}')"
@@ -162,58 +204,106 @@
                         <div class="flex flex-col" id="comment-{{ comment.comment_id }}">
                             <div class="flex justify-between items-start">
                                 <div class="flex space-x-2 flex-grow">
-                                    <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}" class="text-kawaii-purple font-medium hover:underline">
+                                    <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}"
+                                        class="text-kawaii-purple font-medium hover:underline">
                                         {{ comment.user.name if comment.user else "不明" }}
                                     </a>
-                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{ comment.content }}</span>
+                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{
+                                        comment.content }}</span>
                                 </div>
-                                {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
                                 <div class="flex space-x-2 ml-2">
-                                    <button onclick="editComment({{ comment.comment_id }})" 
+                                    {% if session["user_id"] == comment.user_id %}
+                                    <button onclick="editComment({{ comment.comment_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         ✏️ 編集
                                     </button>
-                                    <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})" 
+                                    {% endif %}
+                                    {% if session["user_id"] == comment.user_id or session["role"] == "admin" %}
+                                    <button onclick="deleteComment({{ comment.comment_id }}, {{ post.post_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         🗑️ 削除
                                     </button>
+                                    {% endif %}
+
+                                    {% if session["user_id"] != comment.user_id and session["role"] != "admin" %}
+                                    <button onclick="report('comment', {{ comment.comment_id }})"
+                                        class="text-xs text-gray-500 hover:text-red-600 transition duration-200">
+                                        🚩 通報
+                                    </button>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                             </div>
                             <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
                             </div>
-                            
-                            <div id="edit-form-{{ comment.comment_id }}" class="hidden mt-2">
-                                <div class="flex space-x-2">
-                                    <textarea rows="2" required
-                                        class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
-                                        id="edit-textarea-{{ comment.comment_id }}">{{ comment.content }}</textarea>
-                                    <button type="button" onclick="saveCommentEdit({{ comment.comment_id }})"
-                                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+
+                            <div id="edit-form-post-{{ post.post_id }}" class="hidden mt-2">
+                                <textarea rows="4" required
+                                    class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"
+                                    id="edit-textarea-post-{{ post.post_id }}">{{ post.content }}</textarea>
+
+                                <!-- 編集ボタン行 -->
+                                <div class="flex justify-end space-x-2 mt-2">
+                                    <!-- スタンプボタン -->
+                                    <button type="button" onclick="toggleEditStampPicker({{ post.post_id }})"
+                                        class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow hover:bg-pink-200 transition text-sm">
+                                        😄
+                                    </button>
+
+                                    <!-- 保存ボタン -->
+                                    <button type="button" onclick="savePostEdit({{ post.post_id }})"
+                                        class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                         保存
                                     </button>
-                                    <button type="button" onclick="cancelEdit({{ comment.comment_id }})"
-                                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+
+                                    <!-- キャンセルボタン -->
+                                    <button type="button" onclick="cancelPostEdit({{ post.post_id }})"
+                                        class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                         キャンセル
                                     </button>
                                 </div>
+
+                                <!-- スタンプパレット -->
+                                <div id="edit-stamp-picker-{{ post.post_id }}"
+                                    class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                                    {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                                    <span class="cursor-pointer text-xl hover:scale-110 transition-transform"
+                                        onclick="addEmojiToEdit({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                                    {% endfor %}
+                                </div>
                             </div>
+
+
                         </div>
                         {% endfor %}
                     </div>
                     {% endif %}
 
                     {% if current_scope != 'my_posts' %}
-                    <div class="mt-2">
-                        <div class="flex space-x-2">
-                            <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く" required
-                                class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
-                            <button type="button" onclick="addComment({{ post.post_id }})"
-                                class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                                💭
-                            </button>
-                        </div>
+                    <div class="flex space-x-2">
+                        <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く" required
+                            class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
+
+                        <!-- コメント用スタンプボタン -->
+                        <button type="button" onclick="toggleCommentStampPicker({{ post.post_id }})"
+                            class="px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
+                            😄
+                        </button>
+
+                        <button type="button" onclick="addComment({{ post.post_id }})"
+                            class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                            💭
+                        </button>
                     </div>
+
+                    <!-- コメント用スタンプパレット -->
+                    <div id="comment-stamp-picker-{{ post.post_id }}"
+                        class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
+                        {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
+                        <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
+                            onclick="addEmojiToComment({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                        {% endfor %}
+                    </div>
+
                     {% endif %}
                 </div>
             </div>
@@ -251,28 +341,194 @@
             </div>
             {% endif %}
         </div>
-
     </div>
 </div>
 
-<script>
-    function toggleMenu() {
-        const menu = document.getElementById('sideMenu');
-        menu.classList.toggle('-translate-x-full');
-    }
+<div id="reportModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md transform transition-all">
+        <h3 class="text-xl font-bold text-kawaii-dark mb-4">通報</h3>
+        <form id="reportForm">
+            <p class="text-sm text-kawaii-dark/80 mb-3">通報理由のカテゴリを選択してください。</p>
+            <div class="space-y-2 mb-4">
+                <div>
+                    <input type="radio" id="reason_sexual" name="report_reason_category" value="性的な内容"
+                        class="form-radio text-kawaii-pink focus:ring-kawaii-pink" checked>
+                    <label for="reason_sexual" class="ml-2 text-kawaii-dark">性的な内容</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_violent" name="report_reason_category" value="暴力的または不快な内容"
+                        class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_violent" class="ml-2 text-kawaii-dark">暴力的または不快な内容</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_spam" name="report_reason_category" value="スパムまたは誤解を招く情報"
+                        class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_spam" class="ml-2 text-kawaii-dark">スパムまたは誤解を招く情報</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_hateful" name="report_reason_category" value="差別的または攻撃的な内容"
+                        class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_hateful" class="ml-2 text-kawaii-dark">差別的または攻撃的な内容</label>
+                </div>
+                <div>
+                    <input type="radio" id="reason_other" name="report_reason_category" value="その他"
+                        class="form-radio text-kawaii-pink focus:ring-kawaii-pink">
+                    <label for="reason_other" class="ml-2 text-kawaii-dark">その他</label>
+                </div>
+            </div>
+            <label for="reportDetails" class="block text-sm font-medium text-kawaii-dark/80 mb-2">具体的な内容</label>
+            <textarea id="reportDetails" rows="4" placeholder="問題となっている箇所の詳細を具体的に入力してください。" required
+                class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" id="cancelReport"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg shadow-md hover:bg-gray-300 transition duration-200">
+                    キャンセル
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200">
+                    通報する
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    // 初期状態でメニューを閉じる
+{% if show_restriction_modal %}
+<div id="restrictionModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md transform transition-all text-center">
+        <div class="text-5xl mb-4">⚠️</div>
+        <h3 class="text-xl font-bold text-kawaii-dark mb-4">アカウント制限のお知らせ</h3>
+        <p class="text-kawaii-dark/80 mb-6">
+            現在、あなたのアカウントは一部機能が制限されています。<br>
+            そのため、通知用掲示板の閲覧のみ可能です。
+        </p>
+        <button id="closeRestrictionModal" class="px-6 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200">
+            確認
+        </button>
+    </div>
+</div>
+{% endif %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+
+    let reportInfo = { type: null, id: null };
+
+    // 🔽🔽🔽 ここからスクリプト全体を修正 🔽🔽🔽
     document.addEventListener('DOMContentLoaded', function () {
+        // サイドメニューの処理
         const menu = document.getElementById('sideMenu');
-        if (!menu.classList.contains('-translate-x-full')) {
+        if (menu && !menu.classList.contains('-translate-x-full')) {
             menu.classList.add('-translate-x-full');
         }
+
+        // --- 通報モーダルの処理 ---
+        const reportModal = document.getElementById('reportModal');
+        if (reportModal) {
+            const reportForm = document.getElementById('reportForm');
+            const cancelButton = document.getElementById('cancelReport');
+
+            // キャンセルボタンが存在すれば、クリックイベントを設定
+            if (cancelButton) {
+                cancelButton.addEventListener('click', function() {
+                    reportModal.classList.add('hidden');
+                });
+            }
+
+            // モーダルの外側をクリックしたら閉じるイベント
+            reportModal.addEventListener('click', function(e) {
+                if (e.target === reportModal) {
+                    reportModal.classList.add('hidden');
+                }
+            });
+
+            // 通報フォームが存在すれば、送信イベントを設定
+            if (reportForm) {
+                reportForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); 
+                    const selectedCategory = document.querySelector('input[name="report_reason_category"]:checked').value;
+                    const details = document.getElementById('reportDetails').value;
+
+                    if (!details || details.trim() === "") {
+                        showMessage("具体的な内容を入力してください。", 'error');
+                        return;
+                    }
+                    
+                    const reason = `カテゴリ: ${selectedCategory}\n詳細: ${details.trim()}`;
+                    const payload = { 
+                        reason: reason,
+                        post_id: reportInfo.type === 'post' ? reportInfo.id : null,
+                        comment_id: reportInfo.type === 'comment' ? reportInfo.id : null
+                    };
+
+                    fetch('/report', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        showMessage(data.message, data.success ? 'success' : 'error');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showMessage('通報中にエラーが発生しました。', 'error');
+                    });
+
+                // モーダルを閉じる
+                modal.classList.add('hidden');
+                    
+                    reportModal.classList.add('hidden');
+                });
+            }
+        }
+
+        // --- アカウント制限モーダルの処理 ---
+        const restrictionModal = document.getElementById('restrictionModal');
+        if (restrictionModal) {
+            const closeRestrictionModalButton = document.getElementById('closeRestrictionModal');
+            
+            const closeModal = () => {
+                restrictionModal.style.display = 'none';
+            };
+            
+            if (closeRestrictionModalButton) {
+                closeRestrictionModalButton.addEventListener('click', closeModal);
+            }
+            
+            restrictionModal.addEventListener('click', function(e) {
+                if (e.target === restrictionModal) {
+                    closeModal();
+                }
+            });
+        }
     });
+
+    function report(type, id) {
+        reportInfo = { type: type, id: id };
+
+        // フォームをリセット
+        const reportForm = document.getElementById('reportForm');
+        if (reportForm) {
+            reportForm.reset();
+            const reportDetails = document.getElementById('reportDetails');
+            if(reportDetails) {
+                reportDetails.value = '';
+            }
+        }
+
+        const modal = document.getElementById('reportModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    // ▲▲▲ 修正完了 ▲▲▲
 
     function toggleComments(commentsId) {
         const commentsDiv = document.getElementById(commentsId);
         const arrowIcon = document.getElementById('arrow-' + commentsId.split('-')[1]);
-        
+
         if (commentsDiv.classList.contains('hidden')) {
             commentsDiv.classList.remove('hidden');
             arrowIcon.classList.add('rotate-180');
@@ -282,7 +538,6 @@
         }
     }
 
-    // 投稿削除機能
     function deletePost(postId) {
         if (!confirm('本当に削除しますか？')) {
             return;
@@ -294,50 +549,44 @@
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 投稿要素を削除
-                const postElement = document.getElementById(`post-${postId}`);
-                if (postElement) {
-                    postElement.remove();
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const postElement = document.getElementById(`post-${postId}`);
+                    if (postElement) {
+                        postElement.remove();
+                    }
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
                 }
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('削除中にエラーが発生しました', 'error');
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('削除中にエラーが発生しました', 'error');
+            });
     }
 
-    // 投稿編集フォームを表示
     function editPost(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
-        
-        // 投稿内容を非表示にし、編集フォームを表示
+
         postContent.classList.add('hidden');
         editForm.classList.remove('hidden');
     }
 
-    // 投稿編集をキャンセル
     function cancelPostEdit(postId) {
         const postContent = document.getElementById('post-content-' + postId);
         const editForm = document.getElementById('edit-form-post-' + postId);
-        
-        // 編集フォームを非表示にし、投稿内容を表示
+
         editForm.classList.add('hidden');
         postContent.classList.remove('hidden');
     }
 
-    // 投稿の編集内容を保存
     function savePostEdit(postId) {
         const editTextarea = document.getElementById('edit-textarea-post-' + postId);
         const newContent = editTextarea.value.trim();
-        
+
         if (!newContent) {
             showMessage('投稿内容を入力してください', 'error');
             return;
@@ -350,27 +599,23 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 投稿内容を更新
-                const postContent = document.getElementById('post-content-' + postId);
-                postContent.textContent = data.content;
-                
-                // 編集フォームを閉じる
-                cancelPostEdit(postId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('更新中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const postContent = document.getElementById('post-content-' + postId);
+                    postContent.textContent = data.content;
+                    cancelPostEdit(postId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('更新中にエラーが発生しました', 'error');
+            });
     }
 
-    // コメント削除機能
     function deleteComment(commentId, postId) {
         if (!confirm('本当に削除しますか？')) {
             return;
@@ -382,57 +627,47 @@
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // コメント要素を削除
-                const commentElement = document.getElementById(`comment-${commentId}`);
-                if (commentElement) {
-                    commentElement.remove();
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const commentElement = document.getElementById(`comment-${commentId}`);
+                    if (commentElement) {
+                        commentElement.remove();
+                    }
+                    updateCommentCount(postId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
                 }
-                
-                // コメント数を更新
-                updateCommentCount(postId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('削除中にエラーが発生しました', 'error');
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('削除中にエラーが発生しました', 'error');
+            });
     }
 
-    // コメント編集機能
     function editComment(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
-        
-        // 編集フォームを表示
+
         editForm.classList.remove('hidden');
-        // コメント内容を非表示
         commentContent.style.display = 'none';
-        // テキストエリアに現在の内容を設定
         editTextarea.value = commentContent.textContent;
     }
 
     function cancelEdit(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
         const commentContent = document.getElementById('comment-content-' + commentId);
-        
-        // 編集フォームを非表示
+
         editForm.classList.add('hidden');
-        // コメント内容を表示
         commentContent.style.display = 'inline';
     }
 
-    // コメント保存機能
     function saveCommentEdit(commentId) {
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
         const newContent = editTextarea.value.trim();
-        
+
         if (!newContent) {
             showMessage('コメント内容を入力してください', 'error');
             return;
@@ -445,31 +680,28 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // コメント内容を更新
-                const commentContent = document.getElementById('comment-content-' + commentId);
-                commentContent.textContent = data.content;
-                
-                // 編集フォームを非表示
-                cancelEdit(commentId);
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('更新中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const commentContent = document.getElementById('comment-content-' + commentId);
+                    commentContent.textContent = data.content;
+
+                    cancelEdit(commentId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('更新中にエラーが発生しました', 'error');
+            });
     }
 
-    // コメント追加機能
     function addComment(postId) {
         const textarea = document.getElementById(`comment-textarea-${postId}`);
         const content = textarea.value.trim();
-        
+
         if (!content) {
             showMessage('コメント内容を入力してください', 'error');
             return;
@@ -482,44 +714,34 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // テキストエリアをクリア
-                textarea.value = '';
-                
-                // 新しいコメントを追加
-                addCommentToDOM(postId, data.comment);
-                
-                // コメント数を更新
-                updateCommentCount(postId);
-                
-                showMessage(data.message, 'success');
-            } else {
-                showMessage(data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('コメント追加中にエラーが発生しました', 'error');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    textarea.value = '';
+                    addCommentToDOM(postId, data.comment);
+                    updateCommentCount(postId);
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('コメント追加中にエラーが発生しました', 'error');
+            });
     }
 
-// 新しいコメントをDOMに追加
     function addCommentToDOM(postId, commentData) {
         let commentsContainer = document.getElementById(`comments-${postId}`);
-        
+
         if (!commentsContainer) {
-            // コメントセクションが存在しない場合は作成
             createCommentsSection(postId);
             commentsContainer = document.getElementById(`comments-${postId}`);
         }
-        
+
         const commentElement = document.createElement('div');
         commentElement.className = 'flex flex-col';
         commentElement.id = `comment-${commentData.comment_id}`;
-        
-        // ### 変更点: JavaScriptでの動的追加時もプロフィールへのリンクを設定 ###
         commentElement.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex space-x-2 flex-grow">
@@ -527,42 +749,60 @@
                     <span class="text-kawaii-dark" id="comment-content-${commentData.comment_id}">${commentData.content}</span>
                 </div>
                 <div class="flex space-x-2 ml-2">
-                    <button onclick="editComment(${commentData.comment_id})" 
-                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
-                        ✏️ 編集
-                    </button>
-                    <button onclick="deleteComment(${commentData.comment_id}, ${postId})" 
-                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
-                        🗑️ 削除
-                    </button>
-                </div>
-            </div>
-            <div class="text-xs text-kawaii-dark/50">${commentData.created_at}</div>
-            
-            <div id="edit-form-${commentData.comment_id}" class="hidden mt-2">
-                <div class="flex space-x-2">
-                    <textarea rows="2" required
-                        class="flex-grow px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"
-                        id="edit-textarea-${commentData.comment_id}">${commentData.content}</textarea>
-                    <button type="button" onclick="saveCommentEdit(${commentData.comment_id})"
-                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                        保存
-                    </button>
-                    <button type="button" onclick="cancelEdit(${commentData.comment_id})"
-                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-        `;
-        
+            <button onclick="editComment(${commentData.comment_id})" 
+                class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                ✏️ 編集
+            </button>
+            <button onclick="deleteComment(${commentData.comment_id}, ${commentData.post_id})" 
+                class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                🗑️ 削除
+            </button>
+        </div>
+    </div>
+    <div class="text-xs text-kawaii-dark/50">${commentData.created_at}</div>
+
+    <div id="edit-form-${commentData.comment_id}" class="hidden mt-2">
+        <textarea rows="2" required
+            class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink 
+                   focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none 
+                   placeholder-kawaii-dark/50 text-sm"
+            id="edit-textarea-${commentData.comment_id}">${commentData.content}</textarea>
+
+        <div class="flex justify-end space-x-2 mt-2">
+            <button type="button" onclick="toggleEditCommentStampPicker(${commentData.comment_id})"
+                class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow 
+                       hover:bg-pink-200 transition text-sm">
+                😄 
+            </button>
+            <button type="button" onclick="saveCommentEdit(${commentData.comment_id})"
+                class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white 
+                       font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
+                       transition text-sm">
+                保存
+            </button>
+            <button type="button" onclick="cancelEdit(${commentData.comment_id})"
+                class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg 
+                       transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                キャンセル
+            </button>
+        </div>
+
+        <div id="edit-comment-stamp-picker-${commentData.comment_id}" 
+            class="hidden flex flex-wrap gap-2 mt-2 bg-white/90 p-2 rounded-xl shadow-md">
+            ${['😀', '👍', '❤️', '🎉', '🔥', '😎', '💡', '👏', '😄', '🥰', '💪', '🙏']
+                .map(e => `<span class='cursor-pointer text-xl hover:scale-110 transition-transform'
+                onclick='addEmojiToCommentEdit(${commentData.comment_id}, "${e}")'>${e}</span>`).join('')}
+        </div>
+    </div>
+`;
+
         commentsContainer.appendChild(commentElement);
-        
+
         const toggleButton = commentsContainer.previousElementSibling;
         if (toggleButton) {
             toggleButton.style.display = 'flex';
         }
-        
+
         if (commentsContainer.classList.contains('hidden')) {
             commentsContainer.classList.remove('hidden');
             const arrowIcon = document.getElementById(`arrow-${postId}`);
@@ -572,21 +812,18 @@
         }
     }
 
-    // コメントセクションを作成（初回コメント時）
     function createCommentsSection(postId) {
         const postElement = document.getElementById(`post-${postId}`);
         const commentForm = postElement.querySelector('.mt-2');
-        
+
         const commentsSection = document.createElement('div');
         commentsSection.id = `comments-${postId}`;
         commentsSection.className = 'mt-2 space-y-3 bg-kawaii-dark/5 rounded-xl p-4';
-        
         commentForm.parentNode.insertBefore(commentsSection, commentForm);
-        
+
         const toggleButton = document.createElement('button');
         toggleButton.className = 'w-full flex items-center justify-between px-4 py-2 bg-kawaii-dark/5 rounded-xl hover:bg-kawaii-dark/10 transition duration-200';
         toggleButton.onclick = () => toggleComments(`comments-${postId}`);
-        
         toggleButton.innerHTML = `
             <span class="text-sm text-kawaii-dark flex items-center space-x-2">
                 <span class="text-kawaii-purple">💬</span>
@@ -596,22 +833,19 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
         `;
-        
         commentsSection.parentNode.insertBefore(toggleButton, commentsSection);
     }
 
-    // コメント数を更新
     function updateCommentCount(postId) {
         const commentsContainer = document.getElementById(`comments-${postId}`);
         const commentCountElement = document.getElementById(`comment-count-${postId}`);
-        
+
         if (commentsContainer && commentCountElement) {
             const commentCount = commentsContainer.querySelectorAll('.flex.flex-col').length;
             commentCountElement.textContent = `${commentCount}件のコメント`;
         }
     }
 
-    // メッセージ表示機能
     function showMessage(message, type) {
         const existingMessage = document.querySelector('.message-toast');
         if (existingMessage) {
@@ -620,13 +854,13 @@
 
         const messageDiv = document.createElement('div');
         messageDiv.className = `message-toast fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
-        
+
         if (type === 'success') {
             messageDiv.classList.add('bg-green-500', 'text-white');
         } else {
             messageDiv.classList.add('bg-red-500', 'text-white');
         }
-        
+
         messageDiv.textContent = message;
         document.body.appendChild(messageDiv);
 
@@ -643,5 +877,90 @@
             }, 300);
         }, 3000);
     }
+
+    // スタンプパレットの表示・非表示
+    function toggleStampPicker() {
+        const picker = document.getElementById('stamp-picker');
+        picker.classList.toggle('hidden');
+    }
+
+    // テキストエリアに絵文字を挿入
+    function addEmojiToPost(emoji) {
+        const textarea = document.getElementById('post-content');
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+
+    // コメント用スタンプパレット表示/非表示
+    function toggleCommentStampPicker(postId) {
+        const picker = document.getElementById(`comment-stamp-picker-${postId}`);
+        picker.classList.toggle('hidden');
+    }
+
+    // コメント用テキストエリアに絵文字を挿入
+    function addEmojiToComment(postId, emoji) {
+        const textarea = document.getElementById(`comment-textarea-${postId}`);
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+    // スタンプパレット表示・非表示
+    function toggleEditStampPicker(postId) {
+        const picker = document.getElementById(`edit-stamp-picker-${postId}`);
+        picker.classList.toggle('hidden');
+    }
+
+    // 絵文字を編集テキストエリアに挿入
+    function addEmojiToEdit(postId, emoji) {
+        const textarea = document.getElementById(`edit-textarea-post-${postId}`);
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+    function toggleEditStampPicker(postId) {
+        const picker = document.getElementById(`edit-stamp-picker-${postId}`);
+        picker.classList.toggle('hidden');
+    }
+
+    function addEmojiToEdit(postId, emoji) {
+        const textarea = document.getElementById(`edit-textarea-post-${postId}`);
+        if (!textarea) return;
+        const startPos = textarea.selectionStart;
+        const endPos = textarea.selectionEnd;
+        const text = textarea.value;
+        textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+        textarea.focus();
+        textarea.selectionEnd = startPos + emoji.length;
+    }
+
+    function toggleEditCommentStampPicker(commentId) {
+        const picker = document.getElementById(`edit-comment-stamp-picker-${commentId}`);
+        if (picker) {
+            picker.classList.toggle("hidden");
+        }
+    }
+
+    function addEmojiToCommentEdit(commentId, emoji) {
+        const textarea = document.getElementById(`edit-textarea-${commentId}`);
+        if (textarea) {
+            textarea.value += emoji;
+        }
+    }
+
 </script>
+
+
 {% endblock %}
