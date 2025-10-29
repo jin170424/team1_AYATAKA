@@ -7,6 +7,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room # join_room, le
 import os # os をインポート
 from werkzeug.utils import secure_filename # secure_filename をインポート
 from sqlalchemy import func, or_, distinct
+from sqlalchemy.orm import joinedload # ◀️ N+1問題対策: joinedload をインポート
 from collections import defaultdict
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
@@ -428,7 +429,10 @@ def school_wide_board():
 
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
-        posts_query = Post.query.filter_by(scope="public")
+        
+        # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
+        posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope="public")
+        
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
 
@@ -490,7 +494,10 @@ def school_specific_board():
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
         school_scope = f"school{user_school_id}"
-        posts_query = Post.query.filter_by(scope=school_scope)
+        
+        # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
+        posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope=school_scope)
+
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
 
@@ -556,7 +563,8 @@ def following_board():
 
     followed_users_ids = [user.user_id for user in current_user.followed]
 
-    posts_pagination = Post.query.filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
+    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
+    posts_pagination = Post.query.options(joinedload(Post.author)).filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
@@ -620,7 +628,8 @@ def notice_board():
     if user_school_id == 0:
         notice_scopes.append('notice0')
 
-    posts_pagination = Post.query.filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
+    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
+    posts_pagination = Post.query.options(joinedload(Post.author)).filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
@@ -984,7 +993,8 @@ def my_posts():
 
     page = request.args.get('page', 1, type=int)
 
-    posts_pagination = Post.query.filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
+    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
+    posts_pagination = Post.query.options(joinedload(Post.author)).filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
