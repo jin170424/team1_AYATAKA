@@ -1253,30 +1253,68 @@ def user_management_select():
     return render_template("user_management_select.html", schools=schools)
 
 
+# 🔽🔽🔽 ここが変更点です 🔽🔽🔽
 @app.route("/user_management")
 def user_management():
     if "role" not in session or session["role"] != "admin":
         return redirect(url_for("login"))
 
+    # 絞り込み条件
     school_id = request.args.get("school_id", type=int)
     department_id = request.args.get("department_id", type=int)
     year = request.args.get("year", type=int)
 
-    query = User.query.filter(User.role == "student")
+    # 🔽 変更: ソート条件を受け取る
+    sort_by = request.args.get("sort_by", "student_id") # デフォルトは学籍番号
+    order = request.args.get("order", "asc") # デフォルトは昇順
 
+    # 🔽 変更: Department と join (isouter=Trueで学科未設定でも表示)
+    # joinedload(User.department) で N+1 問題を回避
+    query = User.query.options(joinedload(User.department)).join(User.department, isouter=True).filter(User.role == "student")
+
+    # --- 既存の絞り込み処理 (変更なし) ---
     school_name = "吉田学園グループ全体"
     if school_id is not None and school_id != -1:
-        query = query.filter_by(school_id=school_id)
+        query = query.filter(User.school_id == school_id)
         school = School.query.get(school_id)
         if school:
             school_name = school.school_name
     if department_id and department_id != -1:
-        query = query.filter_by(department_id=department_id)
+        query = query.filter(User.department_id == department_id)
     if year and year != -1:
-        query = query.filter_by(year=year)
+        query = query.filter(User.year == year)
+    # --- 絞り込み処理ここまで ---
 
-    users = query.order_by(User.student_id).all()
-    return render_template("user_management.html", users=users, school_name=school_name)
+    # 🔽 変更: ソート処理
+    if sort_by == "department":
+        # 学科名でソート
+        sort_column = Department.department_name
+    else: 
+        # デフォルト (student_id)
+        sort_column = User.student_id
+
+    # 順序（昇順/降順）の適用
+    if order == "desc":
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
+    users = query.all()
+
+    # 🔽 変更: render_template にソート情報と絞り込み条件を渡す
+    return render_template(
+        "user_management.html", 
+        users=users, 
+        school_name=school_name,
+        # 現在のソート状態
+        current_sort=sort_by,
+        current_order=order,
+        # 絞り込み条件 (ソートリンク生成時に必要)
+        school_id=school_id, 
+        department_id=department_id,
+        year=year
+    )
+# 🔼🔼🔼 変更点はここまでです 🔼🔼🔼
 
 
 @app.route("/user_management/delete/<int:user_id>", methods=["POST"])
