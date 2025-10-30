@@ -79,7 +79,6 @@
                     <input type="password" id="confirm_password" name="confirm_password" minlength="8" required
                         class="block w-full pr-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
 
-                    <!-- 右端の目アイコンボタン -->
                     <button type="button" id="toggleConfirmPassword"
                         class="absolute top-1/2 right-3 -translate-y-2/5 flex items-center text-gray-500 hover:text-indigo-500">
                         <svg id="eyeOpenConfirm" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none"
@@ -115,6 +114,39 @@
     </div>
 
     <script>
+        // --- 1. 学年を自動計算するロジック ---
+        function updateGradeFromStudentId(studentId) {
+            const yearField = document.getElementById("year");
+            
+            // 学籍番号が3桁以上入力されたら処理
+            if (studentId && studentId.length >= 3) {
+                // 2桁目と3桁目を取得 (例: "024..." -> "24")
+                const entryYearDigits = studentId.substring(1, 3); 
+
+                // 取得した2桁が両方とも数字の場合のみ続行
+                if (/^\d{2}$/.test(entryYearDigits)) {
+                    const entryYear = 2000 + parseInt(entryYearDigits, 10);
+
+                    // 現在の「学年度」を計算 (4月始まり)
+                    const currentDate = new Date();
+                    const currentYear = currentDate.getFullYear();
+                    const currentMonth = currentDate.getMonth() + 1; // 1-12
+                    
+                    // 1月, 2月, 3月は前年度扱い
+                    const academicYear = (currentMonth < 4) ? currentYear - 1 : currentYear;
+
+                    // 学年を計算 (例: 2025年度 - 2024年度入学 + 1 = 2年生)
+                    let calculatedGrade = academicYear - entryYear + 1;
+
+                    // inputのmin/max(1～4)に合わせる
+                    calculatedGrade = Math.max(1, Math.min(4, calculatedGrade));
+
+                    yearField.value = calculatedGrade;
+                }
+            }
+        }
+
+        // --- 2. パスワード一致チェック ---
         document.getElementById("signupForm").addEventListener("submit", function (event) {
             const password = document.getElementById("password").value;
             const confirmPassword = document.getElementById("confirm_password").value;
@@ -125,6 +157,7 @@
             }
         });
 
+        // --- 3. 所属校 変更時の処理 ---
         document.getElementById("school").addEventListener("change", function () {
             const schoolId = this.value;
             const deptSelect = document.getElementById("department");
@@ -144,15 +177,26 @@
                         });
                     });
             }
+            
+            // (既存の学籍番号更新ロジック)
             const studentField = document.querySelector("input[name='student_id']");
             let currentValue = studentField.value;
-
             let rest = currentValue.length > 1 ? currentValue.slice(1) : "000000";
+            
+            const newStudentId = schoolId + rest;
+            studentField.value = newStudentId;
 
-            studentField.value = schoolId + rest;
+            // 🔽 追加: 学籍番号が更新されたので、学年計算を実行
+            updateGradeFromStudentId(newStudentId);
         });
-    </script>
-    <script>
+
+        // --- 4. 学籍番号 手入力時の処理 ---
+        // 🔽 追加: 学籍番号フィールドを直接入力した時も学年計算を実行
+        document.getElementById("student_id").addEventListener("input", function() {
+            updateGradeFromStudentId(this.value);
+        });
+
+        // --- 5. パスワード表示切り替え (1つ目) ---
         document.getElementById("togglePassword").addEventListener("click", function () {
             const passwordField = document.getElementById("password");
             const eyeOpen = document.getElementById("eyeOpen");
@@ -168,8 +212,8 @@
                 eyeClosed.classList.remove("hidden");
             }
         });
-    </script>
-    <script>
+
+        // --- 6. パスワード表示切り替え (2つ目: 確認用) ---
         document.getElementById("toggleConfirmPassword").addEventListener("click", function () {
             const passwordField = document.getElementById("confirm_password");
             const eyeOpen = document.getElementById("eyeOpenConfirm");
@@ -186,6 +230,6 @@
             }
         });
     </script>
-</body>
+    </body>
 
 </html>
