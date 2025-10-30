@@ -1503,20 +1503,18 @@ def handle_update_answer(data):
 @app.route("/admin/comment/delete/<int:comment_id>", methods=["POST"])
 def delete_comment(comment_id):
     if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "権限がありません"}), 403
 
     comment = Comment.query.get(comment_id)
     if not comment:
-        flash("コメントが見つかりませんでした。", "error")
-        return redirect(request.referrer or url_for("admin_post_management"))
+        return jsonify({"success": False, "message": "コメントが見つかりませんでした"}), 404
 
     # ◀️ 関連する通報も削除
     Report.query.filter_by(comment_id=comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
-    flash("コメントを削除しました。", "success")
 
-    return redirect(request.referrer or url_for("admin_post_management"))
+    return jsonify({"success": True, "message": "コメントを削除しました"})
 
 @socketio.on('delete_qa')
 def handle_delete_qa(data):
