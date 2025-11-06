@@ -11,19 +11,22 @@ from sqlalchemy.orm import joinedload # ◀️ N+1問題対策: joinedload を�
 from collections import defaultdict
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
+import boto3
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
 socketio = SocketIO(app)
 
+s3 = boto3.client('s3')
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'your-app-uploads-xxxx')
 # ====== 🔽 追加: ファイルアップロードの設定 🔽 ======
-UPLOAD_FOLDER = 'static/uploads' # アップロード先フォルダ
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'} # 許可する拡張子
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# UPLOAD_FOLDER = 'static/uploads' # アップロード先フォルダ
+# ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'} # 許可する拡張子
+# app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # アップロード用ディレクトリがなければ作成
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+# if not os.path.exists(UPLOAD_FOLDER):
+#     os.makedirs(UPLOAD_FOLDER)
 # ====== 🔼 追加完了 🔼 ======
 
 # ====== 既存の設定 ======
@@ -896,12 +899,16 @@ def block_user(user_id):
         })
 # ====== 🔼 ブロック機能のコードはここまでです 🔼 ======
 
+# def allowed_file(filename):
+#     return '.' in filename and \
+#            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/profile/edit", methods=["GET", "POST"])
-@check_restriction # ◀️ デコレータを追加
+@check_restriction
 def edit_profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -912,29 +919,62 @@ def edit_profile():
         user.introduction = request.form.get("introduction")
         user.tags = request.form.get("tags")
 
+        # ▼▼▼ アイコンの処理 (S3対応) ▼▼▼
         if 'icon' in request.files:
             icon_file = request.files['icon']
             if icon_file.filename != '' and allowed_file(icon_file.filename):
+                # ファイル名をセキュアにし、一意性を持たせる
                 filename = secure_filename(f"icon_{user.user_id}_{icon_file.filename}")
-                icon_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                user.icon_path = filename
+                
+                try:
+                    # S3にアップロード
+                    s3.upload_fileobj(
+                        icon_file,
+                        S3_BUCKET_NAME,
+                        filename,
+                        ExtraArgs={'ACL': 'public-read'} # ◀️ 公開読み取り可能にする
+                    )
+                    # S3のURLをデータベースに保存
+                    # リージョンによってURL形式が異なる場合があるため、標準的な形式を使用
+                    user.icon_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
+                
+                except Exception as e:
+                    flash(f"アイコンのアップロードに失敗しました: {e}", "error")
+                    # エラーが発生した場合は、プロフィールの更新を中断して戻る
+                    return redirect(url_for("edit_profile"))
 
+        # ▼▼▼ ヘッダーの処理 (S3対応) ▼▼▼
         if 'header' in request.files:
             header_file = request.files['header']
             if header_file.filename != '' and allowed_file(header_file.filename):
                 filename = secure_filename(f"header_{user.user_id}_{header_file.filename}")
-                header_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                user.header_path = filename
+                
+                try:
+                    # S3にアップロード
+                    s3.upload_fileobj(
+                        header_file,
+                        S3_BUCKET_NAME,
+                        filename,
+                        ExtraArgs={'ACL': 'public-read'} # ◀️ 公開読み取り可能にする
+                    )
+                    # S3のURLをデータベースに保存
+                    user.header_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
+                
+                except Exception as e:
+                    flash(f"ヘッダーのアップロードに失敗しました: {e}", "error")
+                    return redirect(url_for("edit_profile"))
 
+        # すべての処理が成功したらコミット
         db.session.commit()
         flash("プロフィールを更新しました。", "success")
         return redirect(url_for("profile_view"))
 
+    # GETリクエストの場合
     return render_template("edit_profile.html", user=user)
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# @app.route('/uploads/<filename>')
+# def uploaded_file(filename):
+#     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route("/settings")
