@@ -11,13 +11,11 @@ from sqlalchemy.orm import joinedload # ◀️ N+1問題対策: joinedload を�
 from collections import defaultdict
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
-import boto3
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='gevent')
 
-s3 = boto3.client('s3')
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'your-app-uploads-xxxx')
 # ====== 🔽 追加: ファイルアップロードの設定 🔽 ======
 # UPLOAD_FOLDER = 'static/uploads' # アップロード先フォルダ
@@ -42,6 +40,12 @@ else:
     # 環境変数がない場合（ローカル実行時など）は、ローカルの設定を使う
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+try:
+    from psycogreen.gevent import patch_psycopg
+    patch_psycopg()
+except ImportError:
+    pass # psycogreen がインストールされていなければ何もしない
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -318,11 +322,11 @@ def get_conversations():
 def handle_send_dm(data):
     if 'user_id' not in session:
         return
-    
+
     sender_id = session['user_id']
     recipient_id = data.get('recipient_id')
     content = data.get('content')
-    
+
     if not recipient_id or not content:
         return
 
@@ -352,7 +356,7 @@ def handle_send_dm(data):
     )
     db.session.add(new_message)
     db.session.commit()
-    
+
     # 送信者と受信者にメッセージを送信
     message_payload = {
         'message_id': new_message.message_id,
@@ -361,12 +365,12 @@ def handle_send_dm(data):
         'content': content,
         'created_at': new_message.created_at.strftime('%Y/%m/%d %H:%M')
     }
-    
+
     # 受信者がオンラインなら直接送信
     recipient_sid = user_sids.get(recipient_id)
     if recipient_sid:
         emit('receive_dm', message_payload, room=recipient_sid)
-        
+
     # 送信者自身にも送信（UI更新のため）
     emit('receive_dm', message_payload, room=request.sid)
 # ====== 🔼 変更完了 🔼 ======
@@ -432,10 +436,10 @@ def school_wide_board():
 
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
-        
+
         # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
         posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope="public")
-        
+
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
 
@@ -497,7 +501,7 @@ def school_specific_board():
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
         school_scope = f"school{user_school_id}"
-        
+
         # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
         posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope=school_scope)
 
@@ -616,12 +620,12 @@ def following_board():
 def notice_board():
     if "role" not in session or session["role"] != "student":
         return redirect(url_for("login"))
-    
+
     # セッションからモーダル表示フラグを取得し、テンプレートに渡す
     show_modal = session.pop('show_restriction_modal', False)
 
     page = request.args.get('page', 1, type=int)
-    
+
     user_school_id = session.get("school_id")
     notice_scopes = []
 
@@ -915,6 +919,9 @@ def edit_profile():
 
     user = User.query.get(session["user_id"])
 
+    import boto3
+    s3 = boto3.client('s3')
+
     if request.method == "POST":
         user.introduction = request.form.get("introduction")
         user.tags = request.form.get("tags")
@@ -925,7 +932,7 @@ def edit_profile():
             if icon_file.filename != '' and allowed_file(icon_file.filename):
                 # ファイル名をセキュアにし、一意性を持たせる
                 filename = secure_filename(f"icon_{user.user_id}_{icon_file.filename}")
-                
+
                 try:
                     # S3にアップロード
                     s3.upload_fileobj(
@@ -937,7 +944,7 @@ def edit_profile():
                     # S3のURLをデータベースに保存
                     # リージョンによってURL形式が異なる場合があるため、標準的な形式を使用
                     user.icon_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
-                
+
                 except Exception as e:
                     flash(f"アイコンのアップロードに失敗しました: {e}", "error")
                     # エラーが発生した場合は、プロフィールの更新を中断して戻る
@@ -948,7 +955,7 @@ def edit_profile():
             header_file = request.files['header']
             if header_file.filename != '' and allowed_file(header_file.filename):
                 filename = secure_filename(f"header_{user.user_id}_{header_file.filename}")
-                
+
                 try:
                     # S3にアップロード
                     s3.upload_fileobj(
@@ -959,7 +966,7 @@ def edit_profile():
                     )
                     # S3のURLをデータベースに保存
                     user.header_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
-                
+
                 except Exception as e:
                     flash(f"ヘッダーのアップロードに失敗しました: {e}", "error")
                     return redirect(url_for("edit_profile"))
@@ -1329,7 +1336,7 @@ def user_management():
     if sort_by == "department":
         # 学科名でソート
         sort_column = Department.department_name
-    else: 
+    else:
         # デフォルト (student_id)
         sort_column = User.student_id
 
@@ -1343,14 +1350,14 @@ def user_management():
 
     # 🔽 変更: render_template にソート情報と絞り込み条件を渡す
     return render_template(
-        "user_management.html", 
-        users=users, 
+        "user_management.html",
+        users=users,
         school_name=school_name,
         # 現在のソート状態
         current_sort=sort_by,
         current_order=order,
         # 絞り込み条件 (ソートリンク生成時に必要)
-        school_id=school_id, 
+        school_id=school_id,
         department_id=department_id,
         year=year
     )
