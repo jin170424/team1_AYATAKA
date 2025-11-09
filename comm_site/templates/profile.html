@@ -21,12 +21,18 @@
 
     <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-xl p-8 border border-kawaii-lavender relative">
         <div class="absolute left-1/2 transform -translate-x-1/2 -top-20">
-            {% if user.icon_path.startswith('http') %}
-                <img src="{{ user.icon_path }}" alt="アイコン" class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover border border-gray-200">
+            {% if user.icon_path %}
+                {% if user.icon_path.startswith('http') %}
+                    <img src="{{ user.icon_path }}" alt="アイコン" class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover border border-gray-200">
+                {% else %}
+                    <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
+                        <span class="text-gray-500 text-3xl">👤</span>
+                    </div>
+                {% endif %}
             {% else %}
-                <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
-                    <span class="text-gray-500 text-3xl">👤</span>
-                </div>
+                    <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
+                        <span class="text-gray-500 text-3xl">👤</span>
+                    </div>
             {% endif %}
         </div>
 
