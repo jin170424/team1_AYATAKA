@@ -938,8 +938,7 @@ def edit_profile():
                     s3.upload_fileobj(
                         icon_file,
                         S3_BUCKET_NAME,
-                        filename,
-                        ExtraArgs={'ACL': 'public-read'}
+                        filename
                     )
                     user.icon_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
                 
@@ -961,8 +960,7 @@ def edit_profile():
                     s3.upload_fileobj(
                         header_file,
                         S3_BUCKET_NAME,
-                        filename,
-                        ExtraArgs={'ACL': 'public-read'} # ◀️ 公開読み取り可能にする
+                        filename
                     )
                     # S3のURLをデータベースに保存
                     user.header_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
