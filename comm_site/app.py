@@ -939,15 +939,15 @@ def edit_profile():
                         icon_file,
                         S3_BUCKET_NAME,
                         filename,
-                        ExtraArgs={'ACL': 'public-read'} # ◀️ 公開読み取り可能にする
+                        ExtraArgs={'ACL': 'public-read'}
                     )
-                    # S3のURLをデータベースに保存
-                    # リージョンによってURL形式が異なる場合があるため、標準的な形式を使用
                     user.icon_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
-
+                
                 except Exception as e:
+                    # ▼▼▼ 呢句係新加嘅 ▼▼▼
+                    print(f"!!! ICON UPLOAD ERROR: {e}") 
+                    # ▲▲▲ 呢句係新加嘅 ▲▲▲
                     flash(f"アイコンのアップロードに失敗しました: {e}", "error")
-                    # エラーが発生した場合は、プロフィールの更新を中断して戻る
                     return redirect(url_for("edit_profile"))
 
         # ▼▼▼ ヘッダーの処理 (S3対応) ▼▼▼
