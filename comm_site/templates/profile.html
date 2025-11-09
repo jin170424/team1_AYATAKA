@@ -21,18 +21,12 @@
 
     <div class="bg-white/95 backdrop-blur-lg rounded-lg shadow-xl p-8 border border-kawaii-lavender relative">
         <div class="absolute left-1/2 transform -translate-x-1/2 -top-20">
-            {% if user.icon_path %}
-                {% if user.icon_path.startswith('http') %}
-                    <img src="{{ user.icon_path }}" alt="アイコン" class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover border border-gray-200">
-                {% else %}
-                    <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
-                        <span class="text-gray-500 text-3xl">👤</span>
-                    </div>
-                {% endif %}
+            {% if user.icon_path and user.icon_path.startswith('http') %}
+                <img src="{{ user.icon_path }}" alt="アイコン" class="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover border border-gray-200">
             {% else %}
-                    <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
-                        <span class="text-gray-500 text-3xl">👤</span>
-                    </div>
+                <div class="w-32 h-32 rounded-full bg-gray-300 border-4 border-white shadow-lg flex items-center justify-center border border-gray-200">
+                    <span class="text-gray-500 text-3xl">👤</span>
+                </div>
             {% endif %}
         </div>
 
@@ -89,7 +83,12 @@
                            {% if is_blocking %}hidden{% endif %}">
                 {% if is_following %}フォロー中{% else %}フォローする{% endif %}
             </button>
-            <button onclick="openDmWindow({{ user.user_id }}, '{{ user.name }}', '{{ user.icon_path if user.icon_path else '' }}')"
+            <button onclick="openDmWindow({{ user.user_id }}, '{{ user.name }}', 
+                {% if user.icon_path and user.icon_path.startswith('http') %}
+                    '{{ user.icon_path }}'
+                {% else %}
+                    ''
+                {% endif %})"
                     class="inline-block bg-kawaii-purple text-white font-bold py-2 px-6 rounded-full hover:bg-kawaii-purple transition-colors {% if is_blocking %}hidden{% endif %}">
                 DMを送る
             </button>
@@ -121,7 +120,7 @@
             {% for follower in user.followers %}
             <li id="follower-user-{{ follower.user_id }}">
                 <a href="{{ url_for('profile_view', user_id=follower.user_id) }}" class="flex items-center space-x-3 group">
-                    {% if follower.icon_path %}
+                    {% if follower.icon_path and follower.icon_path.startswith('http') %}
                         <img src="{{ follower.icon_path }}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">
                     {% else %}
                         <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>
@@ -144,7 +143,7 @@
             {% for followed_user in user.followed %}
             <li>
                 <a href="{{ url_for('profile_view', user_id=followed_user.user_id) }}" class="flex items-center space-x-3 group">
-                    {% if followed_user.icon_path %}
+                    {% if followed_user.icon_path and followed_user.icon_path.startswith('http') %}
                         <img src="{{ followed_user.icon_path }}" alt="アイコン" class="w-10 h-10 rounded-full object-cover">
                     {% else %}
                         <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center"><span class="text-xl">👤</span></div>

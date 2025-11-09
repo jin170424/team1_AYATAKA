@@ -846,7 +846,7 @@ def follow_user(user_id):
         follower_info = {
             'user_id': current_user.user_id,
             'name': current_user.name,
-            'icon_path': url_for('uploaded_file', filename=current_user.icon_path) if current_user.icon_path else None
+            'icon_path': current_user.icon_path if current_user.icon_path and current_user.icon_path.startswith('http') else None
         }
 
         return jsonify({
