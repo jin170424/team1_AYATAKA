@@ -144,7 +144,7 @@
                                 <span>スコープ: {{ post.scope }}</span>
                             </div>
                             <div class="flex justify-end">
-                                <form class="delete-post-form" data-post-id="{{ post.post_id }}" onsubmit="return confirm('本当に削除しますか？')">
+                                <form class="delete-post-form" data-post-id="{{ post.post_id }}">
                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200">
                                         投稿を削除
                                     </button>
@@ -153,11 +153,11 @@
                             {% if post.comments %}
                             <div class="comment-box mt-4 border-t pt-4 space-y-2">
                                 {% for comment in post.comments %}
-                                <div class="text-sm text-gray-700 flex justify-between items-center py-1">
+                                <div id="comment-{{ comment.comment_id }}" class="text-sm text-gray-700 flex justify-between items-center py-1">
                                     <div>
                                         <strong class="font-semibold">{{ comment.user.name if comment.user else "不明" }}</strong>: {{ comment.content }}
                                     </div>
-                                    <form action="{{ url_for('delete_comment', comment_id=comment.comment_id) }}" method="POST" onsubmit="return confirm('このコメントを本当に削除しますか？')">
+                                    <form class="delete-comment-form" data-comment-id="{{ comment.comment_id }}" method="POST">
                                         <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-medium transition-colors">削除</button>
                                     </form>
                                 </div>
@@ -221,48 +221,87 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // すべての削除フォームを取得
+    // === 投稿削除処理 ===
     const deleteForms = document.querySelectorAll('.delete-post-form');
 
     deleteForms.forEach(form => {
         form.addEventListener('submit', function(event) {
-            // デフォルトのフォーム送信（画面遷移）をキャンセル
             event.preventDefault();
-
-            // フォームのdata属性から投稿IDを取得
             const postId = this.dataset.postId;
 
-            // fetch APIを使って非同期でサーバーに削除リクエストを送信
+            // 🔽 変更: JavaScript側で確認ダイアログを表示
+            if (!confirm('本当に削除しますか？')) {
+                return;
+            }
+            // 🔼 変更完了
+
             fetch(`/post/delete/${postId}`, {
                 method: 'POST',
                 headers: {
-                    // 必要に応じてCSRFトークンなどをヘッダーに追加
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.json()) // サーバーからのレスポンスをJSONとして解析
+            .then(response => response.json()) 
             .then(data => {
                 if (data.success) {
-                    // 削除に成功した場合、画面から該当の投稿要素を削除
                     const postElement = document.getElementById(`post-${postId}`);
                     if (postElement) {
-                        // アニメーションを付けてスムーズに消す（任意）
                         postElement.style.transition = 'opacity 0.5s ease';
                         postElement.style.opacity = '0';
                         setTimeout(() => postElement.remove(), 500);
                     }
                 } else {
-                    // 削除に失敗した場合、エラーメッセージを表示
                     alert('エラー: ' + data.message);
                 }
             })
             .catch(error => {
-                // 通信エラーなどが発生した場合
                 console.error('削除処理中にエラーが発生しました:', error);
                 alert('削除処理中にエラーが発生しました。');
             });
         });
     });
+
+    // 🔽🔽🔽 追加: コメント削除処理 🔽🔽🔽
+    const deleteCommentForms = document.querySelectorAll('.delete-comment-form');
+
+    deleteCommentForms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault(); // デフォルト送信をキャンセル
+
+            const commentId = this.dataset.commentId;
+            
+            if (!confirm('このコメントを本当に削除しますか？')) {
+                return;
+            }
+
+            // app.py で修正した管理者用エンドポイントを呼び出す
+            fetch(`/admin/comment/delete/${commentId}`, { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 成功したらコメントの要素を削除
+                    const commentElement = document.getElementById(`comment-${commentId}`);
+                    if (commentElement) {
+                        commentElement.style.transition = 'opacity 0.3s ease';
+                        commentElement.style.opacity = '0';
+                        setTimeout(() => commentElement.remove(), 300);
+                    }
+                } else {
+                    alert('エラー: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('コメント削除処理中にエラーが発生しました:', error);
+                alert('コメント削除処理中にエラーが発生しました。');
+            });
+        });
+    });
+    // 🔼🔼🔼 追加完了 🔼🔼🔼
 });
 </script>
 {% endblock %}
