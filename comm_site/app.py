@@ -1,20 +1,34 @@
-# 🔽🔽🔽 追加・修正箇所にコメントを入れています 🔽🔽🔽
+# 🔽🔽🔽 必要なモジュールをインポート 🔽🔽🔽
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory # send_from_directory をインポート
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit, join_room, leave_room # join_room, leave_room をインポート
 import os # os をインポート
+import re # ◀️ 追加: タグ抽出のための正規表現
 from werkzeug.utils import secure_filename # secure_filename をインポート
 from sqlalchemy import func, or_, distinct
-from sqlalchemy.orm import joinedload # ◀️ N+1問題対策: joinedload をインポート
+from sqlalchemy.orm import joinedload, subqueryload # ◀️ N+1問題対策: subqueryload をインポート
 from collections import defaultdict
 from flask_migrate import Migrate # Migrate
 from functools import wraps # ◀️ 追加: デコレータに必要
+# ▲▲▲ インポート完了 ▲▲▲
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
 socketio = SocketIO(app, async_mode='gevent')
+
+# 🔽🔽🔽 このフィルタ定義を追加 🔽🔽🔽
+@app.template_filter('remove_tags')
+def remove_tags_filter(s):
+    """
+    Jinja2テンプレートフィルタ: 文字列から #タグ を除去する
+    """
+    if not s:
+        return s
+    # 既存のタグ抽出関数(extract_and_get_tags)と同じ正規表現を使用
+    return re.sub(r'#([a-zA-Z0-9_ぁ-んァ-ヶー一-龠]+)', '', s).strip()
+# 🔼🔼🔼 追加完了 🔼🔼🔼
 
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'your-app-uploads-xxxx')
 # ====== 🔽 追加: ファイルアップロードの設定 🔽 ======
@@ -64,6 +78,30 @@ blocks = db.Table('blocks',
     db.Column('blocked_id', db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
 )
 # ====== 🔼 追加完了 🔼 ======
+
+# 🔽🔽🔽 タグ機能のためのDBテーブル定義を追加 🔽🔽🔽
+
+# 投稿とタグの中間テーブル
+post_tags = db.Table('post_tags',
+    db.Column('post_id', db.Integer, db.ForeignKey('post.post_id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.tag_id'), primary_key=True)
+)
+
+# コメントとタグの中間テーブル
+comment_tags = db.Table('comment_tags',
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.comment_id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.tag_id'), primary_key=True)
+)
+
+# タグモデル
+class Tag(db.Model):
+    __tablename__ = "tag"
+    tag_id = db.Column(db.Integer, primary_key=True)
+    # タグ名はユニーク（一意）にし、検索しやすいようインデックスを貼る
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+
+# ▲▲▲ DBテーブル定義 完了 ▲▲▲
+
 
 # ====== 🔽 モデルの修正・追加 🔽 ======
 class User(db.Model):
@@ -146,6 +184,12 @@ class Post(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     scope = db.Column(db.String(50), nullable=False)
+    
+    # 🔽🔽🔽 PostとTagのリレーションシップを追加 🔽🔽🔽
+    # lazy='subquery' にすることで、Post読み込み時にタグも効率的に読み込む
+    tags = db.relationship('Tag', secondary=post_tags, lazy='subquery',
+        backref=db.backref('posts', lazy='dynamic'))
+    # ▲▲▲ 追加完了 ▲▲▲
 
 class Comment(db.Model):
     __tablename__ = "comment"
@@ -157,6 +201,11 @@ class Comment(db.Model):
 
     post = db.relationship("Post", backref="comments")
     user = db.relationship("User", backref="comments")
+
+    # 🔽🔽🔽 CommentとTagのリレーションシップを追加 🔽🔽🔽
+    tags = db.relationship('Tag', secondary=comment_tags, lazy='subquery',
+        backref=db.backref('comments', lazy='dynamic'))
+    # ▲▲▲ 追加完了 ▲▲▲
 
 # app.py のモデル定義セクションに追加
 
@@ -196,6 +245,39 @@ class QA(db.Model):
     answered_at = db.Column(db.DateTime)
 
     user = db.relationship("User", backref="questions")
+
+# 🔽🔽🔽 タグをDBから検索・作成するヘルパー関数を追加 🔽🔽🔽
+def extract_and_get_tags(content):
+    """
+    コンテンツから #タグ を抽出し、DBから該当タグを取得または新規作成する。
+    日本語タグにも対応。
+    """
+    # 日本語、英数字、アンダースコアに対応した正規表現
+    tag_names = re.findall(r'#([a-zA-Z0-9_ぁ-んァ-ヶー一-龠]+)', content)
+    
+    # 重複を削除し、長すぎるタグを除外
+    unique_names = {name for name in tag_names if len(name) <= 50}
+    
+    if not unique_names:
+        return []
+
+    # 既存のタグをDBから一括取得
+    existing_tags = Tag.query.filter(Tag.name.in_(unique_names)).all()
+    existing_names = {t.name for t in existing_tags}
+    
+    final_tags = list(existing_tags)
+    
+    # DBに存在しない新しいタグを作成
+    new_names = unique_names - existing_names
+    for name in new_names:
+        new_tag = Tag(name=name)
+        db.session.add(new_tag)
+        final_tags.append(new_tag)
+    
+    # 呼び出し元のcommit()でDBに保存される
+    return final_tags
+# ▲▲▲ ヘルパー関数 完了 ▲▲▲
+
 
 # ====== 🔽 ブロックリスト取得のヘルパー関数 🔽 ======
 def get_blocked_user_ids():
@@ -436,10 +518,16 @@ def school_wide_board():
 
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
-
-        # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
-        posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope="public")
-
+        
+        # 🔽🔽🔽 N+1問題対策: 著者、タグ、コメント(＋著者)、コメントのタグ を一括読み込み 🔽🔽🔽
+        posts_query = Post.query.options(
+            joinedload(Post.author),
+            subqueryload(Post.tags), 
+            subqueryload(Post.comments).joinedload(Comment.user),
+            subqueryload(Post.comments).subqueryload(Comment.tags)
+        ).filter_by(scope="public")
+        # ▲▲▲ 変更完了 ▲▲▲
+        
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
 
@@ -501,9 +589,15 @@ def school_specific_board():
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
         school_scope = f"school{user_school_id}"
-
-        # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
-        posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope=school_scope)
+        
+        # 🔽🔽🔽 N+1問題対策: 著者、タグ、コメント(＋著者)、コメントのタグ を一括読み込み 🔽🔽🔽
+        posts_query = Post.query.options(
+            joinedload(Post.author),
+            subqueryload(Post.tags), 
+            subqueryload(Post.comments).joinedload(Comment.user),
+            subqueryload(Post.comments).subqueryload(Comment.tags)
+        ).filter_by(scope=school_scope)
+        # ▲▲▲ 変更完了 ▲▲▲
 
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
@@ -570,8 +664,14 @@ def following_board():
 
     followed_users_ids = [user.user_id for user in current_user.followed]
 
-    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
-    posts_pagination = Post.query.options(joinedload(Post.author)).filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
+    # 🔽🔽🔽 N+1問題対策: 著者、タグ、コメント(＋著者)、コメントのタグ を一括読み込み 🔽🔽🔽
+    posts_pagination = Post.query.options(
+        joinedload(Post.author),
+        subqueryload(Post.tags), 
+        subqueryload(Post.comments).joinedload(Comment.user),
+        subqueryload(Post.comments).subqueryload(Comment.tags)
+    ).filter(Post.user_id.in_(followed_users_ids)).order_by(Post.created_at.desc()).paginate(
+    # ▲▲▲ 変更完了 ▲▲▲
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
@@ -635,8 +735,14 @@ def notice_board():
     if user_school_id == 0:
         notice_scopes.append('notice0')
 
-    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
-    posts_pagination = Post.query.options(joinedload(Post.author)).filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
+    # 🔽🔽🔽 N+1問題対策: 著者、タグ、コメント(＋著者)、コメントのタグ を一括読み込み 🔽🔽🔽
+    posts_pagination = Post.query.options(
+        joinedload(Post.author),
+        subqueryload(Post.tags), 
+        subqueryload(Post.comments).joinedload(Comment.user),
+        subqueryload(Post.comments).subqueryload(Comment.tags)
+    ).filter(Post.scope.in_(notice_scopes)).order_by(Post.created_at.desc()).paginate(
+    # ▲▲▲ 変更完了 ▲▲▲
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
@@ -695,11 +801,20 @@ def submit_post():
         flash("投稿内容が不正です。", "error")
         return redirect(url_for("home"))
 
+    # 🔽🔽🔽 投稿内容からタグを抽出 🔽🔽🔽
+    tags = extract_and_get_tags(content)
+    # ▲▲▲ 処理追加 ▲▲▲
+
     new_post = Post(
         user_id=session["user_id"],
         content=content,
         scope=scope
     )
+    
+    # 🔽🔽🔽 投稿にタグを関連付け 🔽🔽🔽
+    new_post.tags = tags
+    # ▲▲▲ 処理追加 ▲▲▲
+    
     db.session.add(new_post)
     db.session.commit()
 
@@ -740,6 +855,10 @@ def add_comment(post_id):
     content = request.form.get("comment_content")
     if not content:
         return jsonify({"success": False, "message": "コメント内容を入力してください"}), 400
+    
+    # 🔽🔽🔽 コメント内容からタグを抽出 🔽🔽🔽
+    tags = extract_and_get_tags(content)
+    # ▲▲▲ 処理追加 ▲▲▲
 
     post = Post.query.get(post_id)
     if not post:
@@ -750,6 +869,11 @@ def add_comment(post_id):
         user_id=session["user_id"],
         content=content
     )
+    
+    # 🔽🔽🔽 コメントにタグを関連付け 🔽🔽🔽
+    comment.tags = tags
+    # ▲▲▲ 処理追加 ▲▲▲
+    
     db.session.add(comment)
     db.session.commit()
 
@@ -763,7 +887,10 @@ def add_comment(post_id):
             "content": comment.content,
             "user_id": user.user_id,
             "user_name": user.name if user else "不明",
-            "created_at": comment.created_at.strftime('%Y/%m/%d %H:%M')
+            "created_at": comment.created_at.strftime('%Y/%m/%d %H:%M'),
+            # 🔽🔽🔽 抽出したタグをJSONレスポンスに追加 🔽🔽🔽
+            "tags": [{"name": tag.name} for tag in comment.tags]
+            # ▲▲▲ 処理追加 ▲▲▲
         }
     })
 
@@ -1038,8 +1165,14 @@ def my_posts():
 
     page = request.args.get('page', 1, type=int)
 
-    # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
-    posts_pagination = Post.query.options(joinedload(Post.author)).filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
+    # 🔽🔽🔽 N+1問題対策: 著者、タグ、コメント(＋著者)、コメントのタグ を一括読み込み 🔽🔽🔽
+    posts_pagination = Post.query.options(
+        joinedload(Post.author),
+        subqueryload(Post.tags), 
+        subqueryload(Post.comments).joinedload(Comment.user),
+        subqueryload(Post.comments).subqueryload(Comment.tags)
+    ).filter_by(user_id=session["user_id"]).order_by(Post.created_at.desc()).paginate(
+    # ▲▲▲ 変更完了 ▲▲▲
         page=page, per_page=POSTS_PER_PAGE, error_out=False
     )
     posts = posts_pagination.items
@@ -1081,6 +1214,89 @@ def my_posts():
                            pagination=posts_pagination,
                            board_title=f"{session['name']}さんの投稿一覧",
                            current_scope="my_posts")
+
+# 🔽🔽🔽 タグ検索用の新しいルートを追加 🔽🔽🔽
+@app.route("/tag/<string:tag_name>")
+@check_restriction
+def search_by_tag(tag_name):
+    """
+    タグ名で投稿を検索し、home.htmlを再利用して表示する
+    """
+    if "role" not in session:
+        return redirect(url_for("login"))
+
+    page = request.args.get('page', 1, type=int)
+    tag = Tag.query.filter_by(name=tag_name).first()
+
+    if not tag:
+        # タグが見つからない場合
+        return render_template("home.html",
+                               user=session["name"],
+                               posts=[],
+                               pagination=None,
+                               board_title=f"#{tag_name} の投稿",
+                               current_scope="tag_search", # 検索ページ用のスコープ
+                               current_tag_name=tag_name) # ページネーション用
+    
+    # ブロックしている/されているユーザーを除外
+    blocked_ids = get_blocked_user_ids()
+    
+    # タグに関連する投稿を取得 (N+1対策も)
+    posts_query = tag.posts.filter(Post.user_id.notin_(blocked_ids)) \
+                    .options(
+                        joinedload(Post.author),
+                        subqueryload(Post.tags), 
+                        subqueryload(Post.comments).joinedload(Comment.user),
+                        subqueryload(Post.comments).subqueryload(Comment.tags)
+                    )
+
+    posts_pagination = posts_query.order_by(Post.created_at.desc()).paginate(
+        page=page, per_page=POSTS_PER_PAGE, error_out=False
+    )
+    posts = posts_pagination.items
+
+    # --- リアクション処理 (homeのルートからコピー) ---
+    if posts:
+        post_ids = [p.post_id for p in posts]
+        user_id = session.get("user_id")
+
+        reaction_counts = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type,
+            func.count(Reaction.reaction_id)
+        ).filter(Reaction.post_id.in_(post_ids)).group_by(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).all()
+
+        reactions_by_post = defaultdict(dict)
+        for post_id, emoji, count in reaction_counts:
+            reactions_by_post[post_id][emoji] = count
+
+        user_reactions_query = db.session.query(
+            Reaction.post_id,
+            Reaction.reaction_type
+        ).filter(
+            Reaction.post_id.in_(post_ids),
+            Reaction.user_id == user_id
+        ).all()
+
+        user_reactions_set = set(user_reactions_query)
+
+        for post in posts:
+            post.reaction_counts = reactions_by_post.get(post.post_id, {})
+            post.user_reacted_emojis = {emoji for pid, emoji in user_reactions_set if pid == post.post_id}
+    # --- リアクション処理ここまで ---
+
+    return render_template("home.html",
+                           user=session["name"],
+                           posts=posts,
+                           pagination=posts_pagination,
+                           board_title=f"#{tag_name} の投稿",
+                           current_scope="tag_search",
+                           current_tag_name=tag_name)
+# ▲▲▲ 新規ルート追加完了 ▲▲▲
+
 
 # ====== 🔽 ここから新規・修正のルートを追加 🔽 ======
 
@@ -1671,10 +1887,22 @@ def edit_comment(comment_id):
     if not new_content:
         return jsonify({"success": False, "message": "コメント内容を入力してください"}), 400
 
+    # 🔽🔽🔽 編集時にタグを更新 🔽🔽🔽
+    tags = extract_and_get_tags(new_content)
     comment.content = new_content
+    comment.tags = tags
+    # ▲▲▲ 処理追加 ▲▲▲
+    
     db.session.commit()
 
-    return jsonify({"success": True, "message": "コメントを更新しました", "content": new_content})
+    return jsonify({
+        "success": True, 
+        "message": "コメントを更新しました", 
+        "content": new_content,
+        # 🔽🔽🔽 更新後のタグをJSONレスポンスに追加 🔽🔽🔽
+        "tags": [{"name": tag.name} for tag in comment.tags]
+        # ▲▲▲ 処理追加 ▲▲▲
+    })
 
 @app.route("/post/edit/<int:post_id>", methods=["POST"])
 def edit_post(post_id):
@@ -1692,10 +1920,22 @@ def edit_post(post_id):
     if not new_content:
         return jsonify({"success": False, "message": "投稿内容を入力してください"}), 400
 
+    # 🔽🔽🔽 編集時にタグを更新 🔽🔽🔽
+    tags = extract_and_get_tags(new_content)
     post.content = new_content
+    post.tags = tags
+    # ▲▲▲ 処理追加 ▲▲▲
+    
     db.session.commit()
 
-    return jsonify({"success": True, "message": "投稿を更新しました", "content": new_content})
+    return jsonify({
+        "success": True, 
+        "message": "投稿を更新しました", 
+        "content": new_content,
+        # 🔽🔽🔽 更新後のタグをJSONレスポンスに追加 🔽🔽🔽
+        "tags": [{"name": tag.name} for tag in post.tags]
+        # ▲▲▲ 処理追加 ▲▲▲
+    })
 
 # ！！！！！！注意！！！！！！
 # この if __name__ == "__main__": ブロックより上に

@@ -22,21 +22,18 @@
             <div class="mt-2 w-24 h-1 bg-gradient-to-r from-kawaii-pink to-kawaii-purple mx-auto rounded-full"></div>
         </div>
 
-        {% if session["role"] == "student" and current_scope != 'notice0' and current_scope != 'my_posts' and
-        current_scope != 'following' %}
+        {% if session["role"] == "student" and current_scope not in ['notice0', 'my_posts', 'following', 'tag_search'] %}
         <div class="max-w-2xl mx-auto mb-8">
             <form action="{{ url_for('submit_post') }}" method="POST"
                 class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6">
-                <textarea name="content" id="post-content" rows="4" placeholder="投稿内容を入力してください" required
+                <textarea name="content" id="post-content" rows="4" placeholder="投稿内容を入力してください (例: #タグ)" required
                     class="w-full px-4 py-3 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50"></textarea>
 
-                <!-- スタンプ表示ボタン -->
                 <button type="button" onclick="toggleStampPicker()"
                     class="mt-2 px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
                     😄 
                 </button>
 
-                <!-- スタンプパレット（最初は非表示） -->
                 <div id="stamp-picker" class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
                     {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
                     <span class="cursor-pointer text-2xl hover:scale-110 transition-transform"
@@ -60,8 +57,17 @@
             <div class="bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg p-6" id="post-{{ post.post_id }}">
                 <div class="mb-4">
                     <p class="text-lg text-kawaii-dark leading-relaxed" id="post-content-{{ post.post_id }}">{{
-                        post.content }}</p>
-
+                        post.content | remove_tags }}</p>
+                    {% if post.tags %}
+                    <div class="flex flex-wrap gap-2 mt-3 mb-2" id="tags-post-{{ post.post_id }}">
+                        {% for tag in post.tags %}
+                        <a href="{{ url_for('search_by_tag', tag_name=tag.name) }}"
+                            class="text-sm font-medium text-kawaii-purple bg-kawaii-pink/20 px-2.5 py-0.5 rounded-full hover:bg-kawaii-pink/40 transition">
+                            #{{ tag.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     <div class="mt-4">
                         <div class="flex flex-wrap gap-2 mb-3" id="reactions-{{ post.post_id }}">
 
@@ -101,28 +107,23 @@
                             class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"
                             id="edit-textarea-post-{{ post.post_id }}">{{ post.content }}</textarea>
 
-                        <!-- 保存ボタン行（スタンプボタンを保存の左に配置） -->
                         <div class="flex justify-end items-center space-x-2 mt-2">
-                            <!-- スタンプ選択ボタン（保存の左） -->
                             <button type="button" onclick="toggleEditStampPicker({{ post.post_id }})"
                                 class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow hover:bg-pink-200 transition text-sm">
                                 😄 
                             </button>
 
-                            <!-- 保存 -->
                             <button type="button" onclick="savePostEdit({{ post.post_id }})"
                                 class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 保存
                             </button>
 
-                            <!-- キャンセル -->
                             <button type="button" onclick="cancelPostEdit({{ post.post_id }})"
                                 class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                 キャンセル
                             </button>
                         </div>
 
-                        <!-- スタンプパレット（初期は非表示） -->
                         <div id="edit-stamp-picker-{{ post.post_id }}"
                             class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
                             {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
@@ -203,16 +204,31 @@
                         {% for comment in post.comments %}
                         <div class="flex flex-col" id="comment-{{ comment.comment_id }}">
                             <div class="flex justify-between items-start">
-                                <div class="flex space-x-2 flex-grow">
-                                    <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}"
-                                        class="text-kawaii-purple font-medium hover:underline">
-                                        {{ comment.user.name if comment.user else "不明" }}
-                                    </a>
-                                    <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{
-                                        comment.content }}</span>
+                                <div class="flex-grow">
+                                    <div class="flex items-start space-x-2">
+                                        <a href="{{ url_for('profile_view', user_id=comment.user.user_id) if comment.user else '#' }}"
+                                            class="text-kawaii-purple font-medium hover:underline flex-shrink-0">
+                                            {{ comment.user.name if comment.user else "不明" }}
+                                        </a>
+                                        
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span class="text-kawaii-dark" id="comment-content-{{ comment.comment_id }}">{{
+                                                comment.content | remove_tags }}</span>
+                                
+                                            {% if comment.tags %}
+                                            <div class="flex flex-wrap gap-1" id="tags-comment-{{ comment.comment_id }}">
+                                                {% for tag in comment.tags %}
+                                                <a href="{{ url_for('search_by_tag', tag_name=tag.name) }}"
+                                                    class="text-xs font-medium text-kawaii-purple bg-kawaii-pink/10 px-1.5 py-0.5 rounded-full hover:bg-kawaii-pink/30 transition">
+                                                    #{{ tag.name }}
+                                                </a>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="flex space-x-2 ml-2">
-                                    {% if session["user_id"] == comment.user_id %}
+                                <div class="flex space-x-2 ml-2 flex-shrink-0"> {% if session["user_id"] == comment.user_id %}
                                     <button onclick="editComment({{ comment.comment_id }})"
                                         class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
                                         ✏️ 編集
@@ -236,42 +252,40 @@
                             <div class="text-xs text-kawaii-dark/50">{{ comment.created_at.strftime('%Y/%m/%d %H:%M') }}
                             </div>
 
-                            <div id="edit-form-post-{{ post.post_id }}" class="hidden mt-2">
-                                <textarea rows="4" required
-                                    class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none placeholder-kawaii-dark/50"
-                                    id="edit-textarea-post-{{ post.post_id }}">{{ post.content }}</textarea>
-
-                                <!-- 編集ボタン行 -->
+                            <div id="edit-form-{{ comment.comment_id }}" class="hidden mt-2">
+                                <textarea rows="2" required
+                                    class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink 
+                                        focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none 
+                                        placeholder-kawaii-dark/50 text-sm"
+                                    id="edit-textarea-{{ comment.comment_id }}">{{ comment.content }}</textarea>
+                                
                                 <div class="flex justify-end space-x-2 mt-2">
-                                    <!-- スタンプボタン -->
-                                    <button type="button" onclick="toggleEditStampPicker({{ post.post_id }})"
-                                        class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow hover:bg-pink-200 transition text-sm">
-                                        😄
+                                    <button type="button" onclick="toggleEditCommentStampPicker({{ comment.comment_id }})"
+                                        class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow 
+                                            hover:bg-pink-200 transition text-sm">
+                                        😄 
                                     </button>
-
-                                    <!-- 保存ボタン -->
-                                    <button type="button" onclick="savePostEdit({{ post.post_id }})"
-                                        class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                    <button type="button" onclick="saveCommentEdit({{ comment.comment_id }})"
+                                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white 
+                                            font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
+                                            transition text-sm">
                                         保存
                                     </button>
-
-                                    <!-- キャンセルボタン -->
-                                    <button type="button" onclick="cancelPostEdit({{ post.post_id }})"
-                                        class="px-4 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                                    <button type="button" onclick="cancelEdit({{ comment.comment_id }})"
+                                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg 
+                                            transform hover:-translate-y-0.5 transition duration-200 text-sm">
                                         キャンセル
                                     </button>
                                 </div>
-
-                                <!-- スタンプパレット -->
-                                <div id="edit-stamp-picker-{{ post.post_id }}"
-                                    class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
-                                    {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
-                                    <span class="cursor-pointer text-xl hover:scale-110 transition-transform"
-                                        onclick="addEmojiToEdit({{ post.post_id }}, '{{ emoji }}')">{{ emoji }}</span>
+                                
+                                <div id="edit-comment-stamp-picker-{{ comment.comment_id }}" 
+                                    class="hidden flex flex-wrap gap-2 mt-2 bg-white/90 p-2 rounded-xl shadow-md">
+                                    {% for emoji in ['😀', '👍', '❤️', '🎉', '🔥', '😎', '💡', '👏', '😄', '🥰', '💪', '🙏'] %}
+                                    <span class='cursor-pointer text-xl hover:scale-110 transition-transform'
+                                        onclick='addEmojiToCommentEdit({{ comment.comment_id }}, "{{ emoji }}")'>{{ emoji }}</span>
                                     {% endfor %}
                                 </div>
                             </div>
-
 
                         </div>
                         {% endfor %}
@@ -280,10 +294,9 @@
 
                     {% if current_scope != 'my_posts' %}
                     <div class="flex space-x-2">
-                        <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く" required
+                        <textarea id="comment-textarea-{{ post.post_id }}" rows="1" placeholder="コメントを書く (例: #タグ)" required
                             class="flex-grow px-4 py-2 rounded-xl border-2 border-kawaii-pink/20 focus:border-kawaii-pink focus:ring focus:ring-kawaii-pink/30 focus:ring-opacity-50 transition duration-200 resize-none placeholder-kawaii-dark/50 text-sm"></textarea>
 
-                        <!-- コメント用スタンプボタン -->
                         <button type="button" onclick="toggleCommentStampPicker({{ post.post_id }})"
                             class="px-3 py-1 bg-kawaii-pink text-white rounded-lg shadow hover:bg-kawaii-purple transition">
                             😄
@@ -295,7 +308,6 @@
                         </button>
                     </div>
 
-                    <!-- コメント用スタンプパレット -->
                     <div id="comment-stamp-picker-{{ post.post_id }}"
                         class="flex flex-wrap gap-2 mt-2 hidden bg-white/90 p-2 rounded-xl shadow-md">
                         {% for emoji in ['😀','👍','❤️','🎉','🔥','😎','💡','👏','😄','🥰','💪','🙏'] %}
@@ -310,27 +322,43 @@
             {% endfor %}
             <div class="flex justify-center items-center space-x-4 mt-8">
                 {% if pagination.has_prev %}
-                <a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}"
-                    class="px-4 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple transition-all duration-200 shadow-md">
-                    <span class="text-sm">⬅️ 前へ</span>
-                </a>
+                    {% if current_scope == 'tag_search' %}
+                        <a href="{{ url_for('search_by_tag', tag_name=current_tag_name, page=pagination.prev_num) }}"
+                           class="px-4 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple transition-all duration-200 shadow-md">
+                            <span class="text-sm">⬅️ 前へ</span>
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for(request.endpoint, page=pagination.prev_num) }}"
+                           class="px-4 py-2 bg-kawaii-pink text-white rounded-lg hover:bg-kawaii-purple transition-all duration-200 shadow-md">
+                            <span class="text-sm">⬅️ 前へ</span>
+                        </a>
+                    {% endif %}
                 {% else %}
-                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">⬅️ 前へ</span>
+                    <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">⬅️ 前へ</span>
                 {% endif %}
 
+                {% if pagination %}
                 <span class="text-lg font-bold text-kawaii-dark">
                     ページ {{ pagination.page }} / {{ pagination.pages }}
                 </span>
+                {% endif %}
 
                 {% if pagination.has_next %}
-                <a href="{{ url_for(request.endpoint, page=pagination.next_num) }}"
-                    class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                    <span class="text-sm">次へ ➡️</span>
-                </a>
+                    {% if current_scope == 'tag_search' %}
+                        <a href="{{ url_for('search_by_tag', tag_name=current_tag_name, page=pagination.next_num) }}"
+                           class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                            <span class="text-sm">次へ ➡️</span>
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for(request.endpoint, page=pagination.next_num) }}"
+                           class="px-4 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                            <span class="text-sm">次へ ➡️</span>
+                        </a>
+                    {% endif %}
                 {% else %}
-                <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">次へ ➡️</span>
+                    <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm">次へ ➡️</span>
                 {% endif %}
-            </div>
+                </div>
 
             {% else %}
             <div class="bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl p-12 text-center relative overflow-hidden">
@@ -475,9 +503,6 @@
                         console.error('Error:', error);
                         showMessage('通報中にエラーが発生しました。', 'error');
                     });
-
-                // モーダルを閉じる
-                modal.classList.add('hidden');
                     
                     reportModal.classList.add('hidden');
                 });
@@ -583,6 +608,66 @@
         postContent.classList.remove('hidden');
     }
 
+    // 🔽🔽🔽 修正箇所 4: updateTagsDOM の 'comment' タイプのCSSクラスと挿入位置を変更 🔽🔽🔽
+    function updateTagsDOM(type, id, tags) {
+        // type は 'post' または 'comment'
+        const containerId = `tags-${type}-${id}`;
+        let container = document.getElementById(containerId);
+
+        // タグがなくなったらコンテナを削除
+        if (!tags || tags.length === 0) {
+            if (container) {
+                container.remove();
+            }
+            return;
+        }
+
+        // タグのHTMLを生成
+        const tagLinks = tags.map(tag => {
+            if (type === 'post') {
+                return `<a href="/tag/${tag.name}"
+                            class="text-sm font-medium text-kawaii-purple bg-kawaii-pink/20 px-2.5 py-0.5 rounded-full hover:bg-kawaii-pink/40 transition">
+                            #${tag.name}
+                        </a>`;
+            } else { // comment
+                return `<a href="/tag/${tag.name}"
+                            class="text-xs font-medium text-kawaii-purple bg-kawaii-pink/10 px-1.5 py-0.5 rounded-full hover:bg-kawaii-pink/30 transition">
+                            #${tag.name}
+                        </a>`;
+            }
+        }).join('');
+
+        if (container) {
+            // 既存のコンテナがあれば中身を更新
+            container.innerHTML = tagLinks;
+        } else {
+            // コンテナがなければ新規作成して挿入
+            container = document.createElement('div');
+            container.id = containerId;
+            container.innerHTML = tagLinks;
+            
+            if (type === 'post') {
+                container.className = "flex flex-wrap gap-2 mt-3 mb-2";
+                // 投稿本文の次に挿入
+                const postContent = document.getElementById(`post-content-${id}`);
+                if (postContent) {
+                    postContent.parentNode.insertBefore(container, postContent.nextSibling);
+                }
+            } else { // comment
+                // 変更: クラスを 'flex flex-wrap gap-1' に変更
+                container.className = "flex flex-wrap gap-1";
+                
+                // コメント本文(span)の親 (div.flex.flex-wrap...) に追加
+                const commentContent = document.getElementById(`comment-content-${id}`);
+                if (commentContent && commentContent.parentNode) {
+                    // 変更: 本文の親ノード (flexコンテナ) に追加
+                    commentContent.parentNode.appendChild(container);
+                }
+            }
+        }
+    }
+    // ▲▲▲ 修正完了 ▲▲▲
+
     function savePostEdit(postId) {
         const editTextarea = document.getElementById('edit-textarea-post-' + postId);
         const newContent = editTextarea.value.trim();
@@ -603,7 +688,13 @@
             .then(data => {
                 if (data.success) {
                     const postContent = document.getElementById('post-content-' + postId);
-                    postContent.textContent = data.content;
+                    // 🔽🔽🔽 投稿編集時に本文からもタグを除去 (フィルタと同じ正規表現) 🔽🔽🔽
+                    postContent.textContent = data.content.replace(/#([a-zA-Z0-9_ぁ-んァ-ヶー一-龠]+)/g, '').trim();
+                    // 🔼🔼🔼 処理追加 🔼🔼🔼
+
+                    // 投稿編集時にタグを更新
+                    updateTagsDOM('post', postId, data.tags);
+
                     cancelPostEdit(postId);
                     showMessage(data.message, 'success');
                 } else {
@@ -648,20 +739,31 @@
 
     function editComment(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
-        const commentContent = document.getElementById('comment-content-' + commentId);
+        const commentContentSpan = document.getElementById('comment-content-' + commentId);
+        const commentContentContainer = commentContentSpan.parentNode; // spanの親(flexコンテナ)
+        
         const editTextarea = document.getElementById('edit-textarea-' + commentId);
 
         editForm.classList.remove('hidden');
-        commentContent.style.display = 'none';
-        editTextarea.value = commentContent.textContent;
+        // <span> ではなく、本文とタグを含む親コンテナを非表示にする
+        commentContentContainer.style.display = 'none'; 
+        
+        // テキストエリアの初期値は、タグ除去前の元データ (commentData.content) にしたいが、
+        // JS側では保持していないため、APIから再取得するか、
+        // もしくは編集ボタンクリック時に textarea の value にセットされている
+        // comment.content (Jinja2でレンダリングされた元データ) を使う。
+        // ※現状のコード(L341)で既に元データがセットされているため、ここは変更不要。
+        // editTextarea.value = commentContentSpan.textContent; // ◀️ これはタグ除去後なのでNG
     }
 
     function cancelEdit(commentId) {
         const editForm = document.getElementById('edit-form-' + commentId);
-        const commentContent = document.getElementById('comment-content-' + commentId);
+        const commentContentSpan = document.getElementById('comment-content-' + commentId);
+        const commentContentContainer = commentContentSpan.parentNode; // spanの親(flexコンテナ)
 
         editForm.classList.add('hidden');
-        commentContent.style.display = 'inline';
+        // <span> ではなく、親コンテナを再表示
+        commentContentContainer.style.display = 'flex'; 
     }
 
     function saveCommentEdit(commentId) {
@@ -684,7 +786,12 @@
             .then(data => {
                 if (data.success) {
                     const commentContent = document.getElementById('comment-content-' + commentId);
-                    commentContent.textContent = data.content;
+                    // 🔽🔽🔽 コメント編集時に本文からもタグを除去 🔽🔽🔽
+                    commentContent.textContent = data.content.replace(/#([a-zA-Z0-9_ぁ-んァ-ヶー一-龠]+)/g, '').trim();
+                    // 🔼🔼🔼 処理追加 🔼🔼🔼
+
+                    // コメント編集時にタグを更新
+                    updateTagsDOM('comment', commentId, data.tags);
 
                     cancelEdit(commentId);
                     showMessage(data.message, 'success');
@@ -731,6 +838,7 @@
             });
     }
 
+    // 🔽🔽🔽 修正箇所 3: addCommentToDOM のレイアウト変更とタグ除去 🔽🔽🔽
     function addCommentToDOM(postId, commentData) {
         let commentsContainer = document.getElementById(`comments-${postId}`);
 
@@ -739,62 +847,88 @@
             commentsContainer = document.getElementById(`comments-${postId}`);
         }
 
+        // 1. 新規コメントのタグHTMLを生成
+        let tagsHtml = '';
+        if (commentData.tags && commentData.tags.length > 0) {
+            const tagLinks = commentData.tags.map(tag => 
+                `<a href="/tag/${tag.name}"
+                    class="text-xs font-medium text-kawaii-purple bg-kawaii-pink/10 px-1.5 py-0.5 rounded-full hover:bg-kawaii-pink/30 transition">
+                    #${tag.name}
+                </a>`
+            ).join('');
+            // 変更: クラスを 'flex flex-wrap gap-1' に変更 (mt-1.5 ml-8 を削除)
+            tagsHtml = `<div class="flex flex-wrap gap-1" id="tags-comment-${commentData.comment_id}">${tagLinks}</div>`;
+        }
+
         const commentElement = document.createElement('div');
         commentElement.className = 'flex flex-col';
         commentElement.id = `comment-${commentData.comment_id}`;
+        
+        // 2. 正規表現で本文から #タグ を除去
+        const contentWithoutTags = commentData.content.replace(/#([a-zA-Z0-9_ぁ-んァ-ヶー一-龠]+)/g, '').trim();
+        
+        // 3. innerHTML を新しいレイアウトに合わせる
         commentElement.innerHTML = `
             <div class="flex justify-between items-start">
-                <div class="flex space-x-2 flex-grow">
-                    <a href="/profile/${commentData.user_id}" class="text-kawaii-purple font-medium hover:underline">${commentData.user_name}</a>
-                    <span class="text-kawaii-dark" id="comment-content-${commentData.comment_id}">${commentData.content}</span>
+                <div class="flex-grow">
+                    <div class="flex items-start space-x-2">
+                        <a href="/profile/${commentData.user_id}" class="text-kawaii-purple font-medium hover:underline flex-shrink-0">${commentData.user_name}</a>
+                        
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span class="text-kawaii-dark" id="comment-content-${commentData.comment_id}">${contentWithoutTags}</span>
+                            ${tagsHtml}
+                        </div>
+                    </div>
                 </div>
-                <div class="flex space-x-2 ml-2">
-            <button onclick="editComment(${commentData.comment_id})" 
-                class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
-                ✏️ 編集
-            </button>
-            <button onclick="deleteComment(${commentData.comment_id}, ${commentData.post_id})" 
-                class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
-                🗑️ 削除
-            </button>
-        </div>
-    </div>
-    <div class="text-xs text-kawaii-dark/50">${commentData.created_at}</div>
+                <div class="flex space-x-2 ml-2 flex-shrink-0">
+                    <button onclick="editComment(${commentData.comment_id})" 
+                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                        ✏️ 編集
+                    </button>
+                    <button onclick="deleteComment(${commentData.comment_id}, ${postId})" 
+                        class="text-xs text-kawaii-pink hover:text-kawaii-purple transition duration-200">
+                        🗑️ 削除
+                    </button>
+                </div>
+            </div>
+            <div class="text-xs text-kawaii-dark/50">${commentData.created_at}</div>
 
-    <div id="edit-form-${commentData.comment_id}" class="hidden mt-2">
-        <textarea rows="2" required
-            class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink 
-                   focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none 
-                   placeholder-kawaii-dark/50 text-sm"
-            id="edit-textarea-${commentData.comment_id}">${commentData.content}</textarea>
+            <div id="edit-form-${commentData.comment_id}" class="hidden mt-2">
+                <textarea rows="2" required
+                    class="w-full px-3 py-2 rounded-lg border-2 border-kawaii-pink/20 focus:border-kawaii-pink 
+                           focus:ring focus:ring-kawaii-pink/30 transition duration-200 resize-none 
+                           placeholder-kawaii-dark/50 text-sm"
+                    id="edit-textarea-${commentData.comment_id}">${commentData.content}</textarea>
 
-        <div class="flex justify-end space-x-2 mt-2">
-            <button type="button" onclick="toggleEditCommentStampPicker(${commentData.comment_id})"
-                class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow 
-                       hover:bg-pink-200 transition text-sm">
-                😄 
-            </button>
-            <button type="button" onclick="saveCommentEdit(${commentData.comment_id})"
-                class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white 
-                       font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
-                       transition text-sm">
-                保存
-            </button>
-            <button type="button" onclick="cancelEdit(${commentData.comment_id})"
-                class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg 
-                       transform hover:-translate-y-0.5 transition duration-200 text-sm">
-                キャンセル
-            </button>
-        </div>
+                <div class="flex justify-end space-x-2 mt-2">
+                    <button type="button" onclick="toggleEditCommentStampPicker(${commentData.comment_id})"
+                        class="px-3 py-2 bg-pink-100 text-kawaii-dark font-medium rounded-lg shadow 
+                               hover:bg-pink-200 transition text-sm">
+                        😄 
+                    </button>
+                    <button type="button" onclick="saveCommentEdit(${commentData.comment_id})"
+                        class="px-3 py-2 bg-gradient-to-r from-kawaii-pink to-kawaii-purple text-white 
+                               font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 
+                               transition text-sm">
+                        保存
+                    </button>
+                    <button type="button" onclick="cancelEdit(${commentData.comment_id})"
+                        class="px-3 py-2 bg-gray-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg 
+                               transform hover:-translate-y-0.5 transition duration-200 text-sm">
+                        キャンセル
+                    </button>
+                </div>
 
-        <div id="edit-comment-stamp-picker-${commentData.comment_id}" 
-            class="hidden flex flex-wrap gap-2 mt-2 bg-white/90 p-2 rounded-xl shadow-md">
-            ${['😀', '👍', '❤️', '🎉', '🔥', '😎', '💡', '👏', '😄', '🥰', '💪', '🙏']
-                .map(e => `<span class='cursor-pointer text-xl hover:scale-110 transition-transform'
-                onclick='addEmojiToCommentEdit(${commentData.comment_id}, "${e}")'>${e}</span>`).join('')}
-        </div>
-    </div>
-`;
+                <div id="edit-comment-stamp-picker-${commentData.comment_id}" 
+                    class="hidden flex flex-wrap gap-2 mt-2 bg-white/90 p-2 rounded-xl shadow-md">
+                    ${['😀', '👍', '❤️', '🎉', '🔥', '😎', '💡', '👏', '😄', '🥰', '💪', '🙏']
+                        .map(e => `<span class='cursor-pointer text-xl hover:scale-110 transition-transform'
+                        onclick='addEmojiToCommentEdit(${commentData.comment_id}, "${e}")'>${e}</span>`).join('')}
+                </div>
+            </div>
+        `;
+        // ▲▲▲ innerHTML 修正完了 ▲▲▲
+
 
         commentsContainer.appendChild(commentElement);
 
@@ -811,6 +945,7 @@
             }
         }
     }
+    // 🔼🔼🔼 修正完了 🔼🔼🔼
 
     function createCommentsSection(postId) {
         const postElement = document.getElementById(`post-${postId}`);
@@ -956,7 +1091,12 @@
     function addEmojiToCommentEdit(commentId, emoji) {
         const textarea = document.getElementById(`edit-textarea-${commentId}`);
         if (textarea) {
-            textarea.value += emoji;
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, startPos) + emoji + text.substring(endPos);
+            textarea.focus();
+            textarea.selectionEnd = startPos + emoji.length;
         }
     }
 
