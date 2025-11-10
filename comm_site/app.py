@@ -14,16 +14,17 @@ from functools import wraps # ◀️ 追加: デコレータに必要
 
 app = Flask(__name__)
 app.secret_key = "secret_key_for_demo"
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='gevent')
 
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'your-app-uploads-xxxx')
 # ====== 🔽 追加: ファイルアップロードの設定 🔽 ======
-UPLOAD_FOLDER = 'static/uploads' # アップロード先フォルダ
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'} # 許可する拡張子
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# UPLOAD_FOLDER = 'static/uploads' # アップロード先フォルダ
+# ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'} # 許可する拡張子
+# app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # アップロード用ディレクトリがなければ作成
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+# if not os.path.exists(UPLOAD_FOLDER):
+#     os.makedirs(UPLOAD_FOLDER)
 # ====== 🔼 追加完了 🔼 ======
 
 # ====== 既存の設定 ======
@@ -39,6 +40,12 @@ else:
     # 環境変数がない場合（ローカル実行時など）は、ローカルの設定を使う
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:postgres@localhost:5432/comm_site"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+try:
+    from psycogreen.gevent import patch_psycopg
+    patch_psycopg()
+except ImportError:
+    pass # psycogreen がインストールされていなければ何もしない
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -315,11 +322,11 @@ def get_conversations():
 def handle_send_dm(data):
     if 'user_id' not in session:
         return
-    
+
     sender_id = session['user_id']
     recipient_id = data.get('recipient_id')
     content = data.get('content')
-    
+
     if not recipient_id or not content:
         return
 
@@ -349,7 +356,7 @@ def handle_send_dm(data):
     )
     db.session.add(new_message)
     db.session.commit()
-    
+
     # 送信者と受信者にメッセージを送信
     message_payload = {
         'message_id': new_message.message_id,
@@ -358,12 +365,12 @@ def handle_send_dm(data):
         'content': content,
         'created_at': new_message.created_at.strftime('%Y/%m/%d %H:%M')
     }
-    
+
     # 受信者がオンラインなら直接送信
     recipient_sid = user_sids.get(recipient_id)
     if recipient_sid:
         emit('receive_dm', message_payload, room=recipient_sid)
-        
+
     # 送信者自身にも送信（UI更新のため）
     emit('receive_dm', message_payload, room=request.sid)
 # ====== 🔼 変更完了 🔼 ======
@@ -429,10 +436,10 @@ def school_wide_board():
 
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
-        
+
         # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
         posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope="public")
-        
+
         if blocked_ids:
             posts_query = posts_query.filter(Post.user_id.notin_(blocked_ids))
 
@@ -494,7 +501,7 @@ def school_specific_board():
         # 🔽 変更: ブロックしている/されているユーザーの投稿を除外
         blocked_ids = get_blocked_user_ids()
         school_scope = f"school{user_school_id}"
-        
+
         # ◀️ N+1問題対策: options(joinedload(Post.author)) を追加
         posts_query = Post.query.options(joinedload(Post.author)).filter_by(scope=school_scope)
 
@@ -613,12 +620,12 @@ def following_board():
 def notice_board():
     if "role" not in session or session["role"] != "student":
         return redirect(url_for("login"))
-    
+
     # セッションからモーダル表示フラグを取得し、テンプレートに渡す
     show_modal = session.pop('show_restriction_modal', False)
 
     page = request.args.get('page', 1, type=int)
-    
+
     user_school_id = session.get("school_id")
     notice_scopes = []
 
@@ -839,7 +846,7 @@ def follow_user(user_id):
         follower_info = {
             'user_id': current_user.user_id,
             'name': current_user.name,
-            'icon_path': url_for('uploaded_file', filename=current_user.icon_path) if current_user.icon_path else None
+            'icon_path': current_user.icon_path if current_user.icon_path and current_user.icon_path.startswith('http') else None
         }
 
         return jsonify({
@@ -896,45 +903,83 @@ def block_user(user_id):
         })
 # ====== 🔼 ブロック機能のコードはここまでです 🔼 ======
 
+# def allowed_file(filename):
+#     return '.' in filename and \
+#            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/profile/edit", methods=["GET", "POST"])
-@check_restriction # ◀️ デコレータを追加
+@check_restriction
 def edit_profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     user = User.query.get(session["user_id"])
 
+    import boto3
+    s3 = boto3.client('s3')
+
     if request.method == "POST":
         user.introduction = request.form.get("introduction")
         user.tags = request.form.get("tags")
 
+        # ▼▼▼ アイコンの処理 (S3対応) ▼▼▼
         if 'icon' in request.files:
             icon_file = request.files['icon']
             if icon_file.filename != '' and allowed_file(icon_file.filename):
+                # ファイル名をセキュアにし、一意性を持たせる
                 filename = secure_filename(f"icon_{user.user_id}_{icon_file.filename}")
-                icon_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                user.icon_path = filename
 
+                try:
+                    # S3にアップロード
+                    s3.upload_fileobj(
+                        icon_file,
+                        S3_BUCKET_NAME,
+                        filename
+                    )
+                    user.icon_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
+                
+                except Exception as e:
+                    # ▼▼▼ 呢句係新加嘅 ▼▼▼
+                    print(f"!!! ICON UPLOAD ERROR: {e}") 
+                    # ▲▲▲ 呢句係新加嘅 ▲▲▲
+                    flash(f"アイコンのアップロードに失敗しました: {e}", "error")
+                    return redirect(url_for("edit_profile"))
+
+        # ▼▼▼ ヘッダーの処理 (S3対応) ▼▼▼
         if 'header' in request.files:
             header_file = request.files['header']
             if header_file.filename != '' and allowed_file(header_file.filename):
                 filename = secure_filename(f"header_{user.user_id}_{header_file.filename}")
-                header_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                user.header_path = filename
 
+                try:
+                    # S3にアップロード
+                    s3.upload_fileobj(
+                        header_file,
+                        S3_BUCKET_NAME,
+                        filename
+                    )
+                    # S3のURLをデータベースに保存
+                    user.header_path = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{filename}"
+
+                except Exception as e:
+                    flash(f"ヘッダーのアップロードに失敗しました: {e}", "error")
+                    return redirect(url_for("edit_profile"))
+
+        # すべての処理が成功したらコミット
         db.session.commit()
         flash("プロフィールを更新しました。", "success")
         return redirect(url_for("profile_view"))
 
+    # GETリクエストの場合
     return render_template("edit_profile.html", user=user)
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# @app.route('/uploads/<filename>')
+# def uploaded_file(filename):
+#     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route("/settings")
@@ -1289,7 +1334,7 @@ def user_management():
     if sort_by == "department":
         # 学科名でソート
         sort_column = Department.department_name
-    else: 
+    else:
         # デフォルト (student_id)
         sort_column = User.student_id
 
@@ -1303,14 +1348,14 @@ def user_management():
 
     # 🔽 変更: render_template にソート情報と絞り込み条件を渡す
     return render_template(
-        "user_management.html", 
-        users=users, 
+        "user_management.html",
+        users=users,
         school_name=school_name,
         # 現在のソート状態
         current_sort=sort_by,
         current_order=order,
         # 絞り込み条件 (ソートリンク生成時に必要)
-        school_id=school_id, 
+        school_id=school_id,
         department_id=department_id,
         year=year
     )
@@ -1503,20 +1548,18 @@ def handle_update_answer(data):
 @app.route("/admin/comment/delete/<int:comment_id>", methods=["POST"])
 def delete_comment(comment_id):
     if "role" not in session or session["role"] != "admin":
-        return redirect(url_for("login"))
+        return jsonify({"success": False, "message": "権限がありません"}), 403
 
     comment = Comment.query.get(comment_id)
     if not comment:
-        flash("コメントが見つかりませんでした。", "error")
-        return redirect(request.referrer or url_for("admin_post_management"))
+        return jsonify({"success": False, "message": "コメントが見つかりませんでした"}), 404
 
     # ◀️ 関連する通報も削除
     Report.query.filter_by(comment_id=comment_id).delete()
     db.session.delete(comment)
     db.session.commit()
-    flash("コメントを削除しました。", "success")
 
-    return redirect(request.referrer or url_for("admin_post_management"))
+    return jsonify({"success": True, "message": "コメントを削除しました"})
 
 @socketio.on('delete_qa')
 def handle_delete_qa(data):
