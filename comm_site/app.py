@@ -391,7 +391,7 @@ def get_conversations():
         {
             "user_id": partner.user_id,
             "name": partner.name,
-            "icon_path": url_for('uploaded_file', filename=partner.icon_path) if partner.icon_path else None
+            "icon_path": partner.icon_path if partner.icon_path and partner.icon_path.startswith('http') else None
         } for partner in partners
     ]
 
