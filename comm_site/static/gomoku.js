@@ -55,11 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // style.css に以下の CSS を追加する必要があります：
-    // .gomoku-cell { width: 40px; height: 40px; border: 1px solid #B19CD9; background-color: #FFD1A1; cursor: pointer; position: relative; }
-    // .gomoku-cell:hover { background-color: #FF88B6; }
-    // .star-point::after { content: ''; width: 6px; height: 6px; background: #4A4A4A; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-
 
     // 2. ページを開いたらすぐにゲーム検索を開始
     socket.emit('find_gomoku_game');

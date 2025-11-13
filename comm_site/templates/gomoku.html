@@ -35,10 +35,6 @@
 
 </div>
 
-<script>
-        // Flask のセッションから JS へ現在のユーザーIDと名前を渡す
-        const currentUserId = {{ session.user_id }};
-        const currentUserName = "{{ session.name }}";
-    </script>
-<script src="{{ url_for('static', filename='gomoku.js') }}"></script>
 {% endblock %}
+
+<script src="{{ url_for('static', filename='gomoku.js') }}"></script>
