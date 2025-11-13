@@ -530,8 +530,50 @@ def handle_disconnect():
     if user_id and user_id == gomoku_waiting_player:
         gomoku_waiting_player = None
 
-    # TODO: (上級編) ゲーム対戦中に切断した場合、相手に不戦勝を通知する
-    # active_games から該当ゲームを探し、相手に emit('game_over', ...) する
+# ▼▼▼ ここからが「ゲーム中切断」の処理ロジック ▼▼▼
+    game_to_remove = None
+    opponent_sid = None
+    winner = None
+    loser = None
+
+    # 1. すべてのゲームルームから切断者を探す
+    for room_id, game in gomoku_games.items():
+        if user_id in game['players']:
+            game_to_remove = room_id
+            
+            # 2. 対戦相手 (opponent) を特定
+            opponent_id = [pid for pid in game['players'] if pid != user_id][0]
+            opponent_sid = user_sids.get(opponent_id)
+            
+            # 3. 対戦相手 (opponent) を勝者とする
+            winner = User.query.get(opponent_id)
+            loser = User.query.get(user_id) # user_id が切断者
+            break # ゲームが見つかったらループを抜ける
+
+    # 4. ゲームが見つかり、かつ相手がまだオンラインの場合
+    if game_to_remove and opponent_sid and winner and loser:
+        
+        # 5. スコアを更新 (要望：勝ち+10, 負け-5, 最低0)
+        winner.gomoku_score += 10
+        loser.gomoku_score = max(0, loser.gomoku_score - 5)
+        db.session.commit()
+
+        # 6. 相手に「相手が切断したため勝利」と通知
+        emit('gomoku_game_over', {
+            'winner_name': winner.name,
+            'winner_score': winner.gomoku_score,
+            'loser_score': loser.gomoku_score,
+            'winner_id': winner.user_id,
+            'disconnected': True # ◀️ 切断フラグを追加
+        }, room=opponent_sid) # 相手にだけ通知
+
+        # 7. サーバーからこのゲームルームを削除
+        if game_to_remove in gomoku_games:
+            try:
+                del gomoku_games[game_to_remove]
+            except KeyError:
+                pass # 既に削除済みの場合を考慮
+    # ▲▲▲ 切断ロジック追加完了 ▲▲▲
 
 # ====== 🔽 追加: DMメッセージ履歴取得API 🔽 ======
 @app.route("/api/messages/<int:recipient_id>")

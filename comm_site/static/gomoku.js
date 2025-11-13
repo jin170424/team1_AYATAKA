@@ -73,12 +73,16 @@ document.addEventListener('DOMContentLoaded', () => {
         myColor = data.your_color;
         opponentNameElement.textContent = data.opponent_name;
         
-        // 自分の情報を更新 (黒か白か)
-        // (currentUserName は gomoku.html で定義)
-        playerInfoElement.innerHTML = `
-            <p class="font-bold text-lg">あなた (${myColor === 'black' ? '黒' : '白'}):</p>
-            <p>${currentUserName}</p>
-        `;
+    // 相手の色を決定（自分とは逆）
+        const opponentColor = (myColor === 'black' ? '白' : '黒');
+        const myColorText = (myColor === 'black' ? '黒' : '白');
+
+        // HTMLのラベルを更新
+        document.getElementById('my-color-label').textContent = `あなた (${myColorText}):`;
+        document.getElementById('opponent-color-label').textContent = `対戦相手 (${opponentColor}):`;
+        
+        // 自分の名前ラベルを更新 (currentUserName は gomoku.html で定義されています)
+        playerInfoElement.querySelector('p:last-child').textContent = currentUserName;
         
         // 最初のターンを判定 (currentUserId は gomoku.html で定義)
         myTurn = (data.turn === currentUserId); 
@@ -106,7 +110,13 @@ document.addEventListener('DOMContentLoaded', () => {
         myTurn = false;
         currentRoomId = null; // ゲーム終了
 
-        gameOverTitle.textContent = data.winner_name + " の勝利！";
+        if (data.disconnected) {
+            // 相手が切断した場合
+            gameOverTitle.textContent = "相手が切断しました";
+        } else {
+            // 通常の勝敗
+            gameOverTitle.textContent = data.winner_name + " の勝利！";
+        }
         
         // 自分が勝者か敗者かでメッセージを変える
         if (data.winner_id === currentUserId) {
