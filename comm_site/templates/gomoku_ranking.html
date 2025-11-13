@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+    <h2 class="text-3xl font-bold text-kawaii-dark mb-6 text-center">🏆 五目並べ ランキング 🏆</h2>
+    
+    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-lg p-6">
+        <ol class="space-y-4">
+            {% for user in rankers %}
+            <li class="flex items-center space-x-4 p-3 rounded-lg {% if loop.index == 1 %}bg-kawaii-yellow/50{% elif loop.index == 2 %}bg-gray-200/50{% elif loop.index == 3 %}bg-yellow-800/20{% endif %}">
+                <span class="text-2xl font-bold w-10 text-center">
+                    {% if loop.index == 1 %}🥇
+                    {% elif loop.index == 2 %}🥈
+                    {% elif loop.index == 3 %}🥉
+                    {% else %}{{ loop.index }}
+                    {% endif %}
+                </span>
+                
+                {% if user.icon_path and user.icon_path.startswith('http') %}
+                <img src="{{ user.icon_path }}" alt="icon" class="w-12 h-12 rounded-full object-cover">
+                {% else %}
+                <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-2xl">👤</div>
+                {% endif %}
+                
+                <div class="flex-grow">
+                    <p class="font-bold text-lg text-kawaii-dark">{{ user.name }}</p>
+                    <p class="text-sm text-kawaii-purple">{{ user.school.school_name }}</p>
+                </div>
+                
+                <div class="text-xl font-bold text-kawaii-pink">
+                    {{ user.gomoku_score }} pt
+                </div>
+            </li>
+            {% else %}
+            <p class="text-center text-gray-500">まだランキングに登録されているプレイヤーがいません。</p>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+{% endblock %}

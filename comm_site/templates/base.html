@@ -266,6 +266,15 @@
                     <span class="text-xl">❤️</span>
                     <span class="font-medium group-hover:text-kawaii-pink">フォロー中</span>
                 </a>
+                <a href="{{ url_for('gomoku_lobby') }}"
+                    class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">⚪</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">五目並べ</span>
+                </a>
+                <a href="{{ url_for('gomoku_ranking_page') }}" class="group w-full px-4 py-3 bg-white/80 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-kawaii-dark flex items-center space-x-3">
+                    <span class="text-xl">🏆</span>
+                    <span class="font-medium group-hover:text-kawaii-pink">ゲームランキング</span>
+                </a>
                 {% endif %}
             </nav>
         </div>
