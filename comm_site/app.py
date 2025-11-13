@@ -330,7 +330,6 @@ gomoku_games = {}
 def gomoku_lobby():
     if "user_id" not in session:
         return redirect(url_for("login"))
-    # render 我哋步驟二整嘅 HTML
     return render_template("gomoku.html")
 
 @socketio.on('connect')
