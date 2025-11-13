@@ -37,4 +37,11 @@
 
 {% endblock %}
 
+{% block scripts %}
+<script>
+    // Flask のセッションから JS へ現在のユーザー名を渡す
+    // (currentUserId は base.html が提供)
+    const currentUserName = "{{ session.name }}";
+</script>
 <script src="{{ url_for('static', filename='gomoku.js') }}"></script>
+{% endblock %}
