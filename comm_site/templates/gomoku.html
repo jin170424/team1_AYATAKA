@@ -7,16 +7,14 @@
     <div id="game-status" class="mb-4 text-xl font-medium text-kawaii-purple">
         </div>
 
-    <div class="flex justify-around items-center mb-4 p-4 bg-white/90 rounded-xl shadow-md">
-        <div id="player-info" class="text-left">
-            <p class="font-bold text-lg">あなた (???):</p>
-            <p>{{ session.name }}</p>
-        </div>
-        <div class="text-2xl font-bold text-kawaii-pink">VS</div>
-        <div id="opponent-info" class="text-right">
-            <p class="font-bold text-lg">対戦相手 (???):</p>
-            <p id="opponent-name">???</p>
-        </div>
+    <div id="player-info" class="text-left">
+        <p id="my-color-label" class="font-bold text-lg">あなた:</p> 
+        <p>{{ session.name }}</p>
+    </div>
+    
+    <div id="opponent-info" class="text-right">
+        <p id="opponent-color-label" class="font-bold text-lg">対戦相手:</p>
+        <p id="opponent-name">???</p>
     </div>
 
     <div id="gomoku-board" class="grid grid-cols-15 w-[600px] h-[600px] bg-kawaii-yellow/50 shadow-inner rounded-lg mx-auto border-2 border-kawaii-purple/50"
