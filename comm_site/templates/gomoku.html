@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8 text-center">
+    <h2 class="text-3xl font-bold text-kawaii-dark mb-4">五目並べ 対戦</h2>
+
+    <div id="game-status" class="mb-4 text-xl font-medium text-kawaii-purple">
+        </div>
+
+    <div class="flex justify-around items-center mb-4 p-4 bg-white/90 rounded-xl shadow-md">
+        <div id="player-info" class="text-left">
+            <p id="my-color-label" class="font-bold text-lg">あなた:</p> 
+            <p>{{ session.name }}</p>
+        </div>
+        <div class="text-2xl font-bold text-kawaii-pink">VS</div>
+        <div id="opponent-info" class="text-right">
+            <p id="opponent-color-label" class="font-bold text-lg">対戦相手:</p>
+            <p id="opponent-name">???</p>
+        </div>
+    </div>
+
+    <div id="gomoku-board" class="grid grid-cols-15 w-[600px] h-[600px] bg-kawaii-yellow/50 shadow-inner rounded-lg mx-auto border-2 border-kawaii-purple/50"
+         style="grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);">
+        </div>
+
+    <div id="game-over-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 text-center">
+            <h3 id="game-over-title" class="text-2xl font-bold text-kawaii-dark mb-4"></h3>
+            <p id="game-over-message" class="text-lg mb-6"></p>
+            <a href="{{ url_for('index') }}" class="px-6 py-2 bg-kawaii-pink text-white font-bold rounded-full hover:bg-kawaii-purple">
+                ロビーに戻る
+            </a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Flask のセッションから JS へ現在のユーザー名を渡す
+    // (currentUserId は base.html が提供)
+    const currentUserName = "{{ session.name }}";
+</script>
+<script src="{{ url_for('static', filename='gomoku.js') }}"></script>
+{% endblock %}

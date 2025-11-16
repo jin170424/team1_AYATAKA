@@ -129,6 +129,7 @@ class User(db.Model):
 
     # ◀️ 追加: 機能制限フラグ
     is_restricted = db.Column(db.Boolean, default=False, nullable=False)
+    gomoku_score = db.Column(db.Integer, default=0, nullable=False)
 
     # ====== 🔽 追加: フォロー機能のためのリレーションシップ 🔽 ======
     followed = db.relationship(
@@ -320,6 +321,17 @@ def check_restriction(f):
 # ユーザーIDとセッションIDを管理するための辞書
 user_sids = {}
 
+## 五目並べ用のデータ構造
+gomoku_waiting_player = None
+gomoku_games = {}
+
+@app.route("/game/gomoku")
+@check_restriction
+def gomoku_lobby():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    return render_template("gomoku.html")
+
 @socketio.on('connect')
 def handle_connect():
     user_id = session.get('user_id')
@@ -328,12 +340,239 @@ def handle_connect():
         # ユーザー自身の部屋に入る（通知などに利用可能）
         join_room(user_id)
 
+@app.route("/gomoku_ranking")
+@check_restriction
+def gomoku_ranking_page():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    # User テーブルをクエリ
+    # スコアが 0 より大きいプレイヤーのみ表示 (あなたのリクエスト)
+    # スコアの高い順 (desc) に並び替え
+    # (N+1問題対策: school 情報も一緒にロード)
+    rankers = User.query.options(
+        joinedload(User.school)
+    ).filter(
+        User.gomoku_score > 0
+    ).order_by(
+        User.gomoku_score.desc()
+    ).limit(20).all() # (例: 上位20名のみ表示)
+    
+    return render_template("gomoku_ranking.html", rankers=rankers)
+
+@socketio.on('find_gomoku_game')
+def handle_find_gomoku_game():
+    global gomoku_waiting_player # グローバル変数を参照
+    user_id = session.get("user_id")
+    if not user_id:
+        return 
+
+    # 待機室にいるのが自分自身なら、何もしない
+    if gomoku_waiting_player == user_id:
+        return
+
+    # 1. 待機室が空の場合
+    if gomoku_waiting_player is None:
+        gomoku_waiting_player = user_id
+        # クライアントに「待機中」のステータスを送信
+        emit('gomoku_status', {'message': '対戦相手を待っています...'}, room=request.sid)
+    
+    # 2. 待機室に誰かいる場合、対戦開始！
+    else:
+        player1_id = gomoku_waiting_player
+        player2_id = user_id
+        gomoku_waiting_player = None # 待機室を空にする
+
+        # 両プレイヤーのソケットID (sid) を取得
+        # (user_sids はDM機能 で既に使用中の辞書)
+        player1_sid = user_sids.get(player1_id)
+        player2_sid = user_sids.get(player2_id)
+
+        # どちらかのプレイヤーが切断していた場合
+        if not (player1_sid and player2_sid):
+            # プレイヤー1を待機室に戻す
+            gomoku_waiting_player = player1_id
+            if player1_sid:
+                emit('gomoku_status', {'message': '相手が切断しました。再度待機します...'}, room=player1_sid)
+            return
+
+        # 3. 新しいゲームルームを作成
+        room_id = f"gomoku_{player1_id}_{player2_id}"
+        game_state = {
+            'board': [[None for _ in range(15)] for _ in range(15)], # 15x15 の碁盤
+            'players': {player1_id: 'black', player2_id: 'white'}, # P1 が黒, P2 が白
+            'turn': player1_id # P1 (黒) が先手
+        }
+        gomoku_games[room_id] = game_state # サーバー側でゲーム状態を保存
+
+        # 4. 両プレイヤーを SocketIO のルームに参加させる
+        join_room(room_id, sid=player1_sid)
+        join_room(room_id, sid=player2_sid)
+
+        # 5. P1 にゲーム開始を通知
+        emit('gomoku_game_start', {
+            'room_id': room_id,
+            'opponent_name': User.query.get(player2_id).name, # P2の名前をP1に送信
+            'your_color': 'black',
+            'turn': player1_id
+        }, room=player1_sid)
+        
+        # 6. P2 にゲーム開始を通知
+        emit('gomoku_game_start', {
+            'room_id': room_id,
+            'opponent_name': User.query.get(player1_id).name, # P1の名前をP2に送信
+            'your_color': 'white',
+            'turn': player1_id
+        }, room=player2_sid)
+
+
+@socketio.on('make_gomoku_move')
+def handle_gomoku_move(data):
+    user_id = session.get("user_id")
+    room_id = data.get("room_id")
+    row = data.get("row")
+    col = data.get("col")
+
+    game = gomoku_games.get(room_id)
+
+    # --- バリデーション (検証) ---
+    if not game:
+        return emit('gomoku_error', {'message': '無効なゲームです'})
+    if game['turn'] != user_id:
+        return emit('gomoku_error', {'message': 'あなたのターンではありません'})
+    # 配列の範囲チェックを追加
+    if not (0 <= row < 15 and 0 <= col < 15):
+        return emit('gomoku_error', {'message': '無効な場所です'})
+    if game['board'][row][col] is not None:
+        return emit('gomoku_error', {'message': 'そこには既に石があります'})
+    # --- 検証完了 ---
+
+    # 1. サーバー側の碁盤に石を置く
+    color = game['players'][user_id]
+    game['board'][row][col] = color
+
+    # 2. この一手（着手）をルーム全員にブロードキャスト（送信）
+    emit('gomoku_move_made', {
+        'row': row, 
+        'col': col, 
+        'color': color
+    }, room=room_id)
+
+    # 3. 勝敗判定 (最も難しいロジック)
+    if check_gomoku_win(game['board'], row, col, color):
+        winner = User.query.get(user_id)
+        loser_id = [pid for pid in game['players'] if pid != user_id][0]
+        loser = User.query.get(loser_id)
+
+        # 4. スコアの加算/減算 (最低 0 ポイント)
+        winner.gomoku_score += 10 # 勝ち +10
+        loser.gomoku_score = max(0, loser.gomoku_score - 5) # 負け -5 (最低 0)
+        db.session.commit()
+
+        # 5. ゲーム終了をブロードキャスト
+        emit('gomoku_game_over', {
+            'winner_name': winner.name,
+            'winner_score': winner.gomoku_score,
+            'loser_score': loser.gomoku_score,
+            'winner_id': winner.user_id
+        }, room=room_id)
+        
+        # 6. サーバーからゲームルームを削除 (メモリ解放)
+        if room_id in gomoku_games:
+            del gomoku_games[room_id]
+        
+    else:
+        # 7. ゲーム続行、ターンを交代
+        next_player_id = [pid for pid in game['players'] if pid != user_id][0]
+        game['turn'] = next_player_id
+        
+        # 8. 次のターンをブロードキャスト
+        emit('gomoku_turn_update', {'turn': next_player_id}, room=room_id)
+
+
+# 5連鎖をチェックするためのヘルパー関数
+def check_gomoku_win(board, r, c, color):
+    directions = [(0, 1), (1, 0), (1, 1), (1, -1)] # 水平, 垂直, 右下, 右上
+    for dr, dc in directions:
+        count = 1
+        # 一方向にチェック
+        for i in range(1, 5):
+            nr, nc = r + dr*i, c + dc*i
+            if 0 <= nr < 15 and 0 <= nc < 15 and board[nr][nc] == color:
+                count += 1
+            else:
+                break
+        # 反対方向にチェック
+        for i in range(1, 5):
+            nr, nc = r - dr*i, c - dc*i
+            if 0 <= nr < 15 and 0 <= nc < 15 and board[nr][nc] == color:
+                count += 1
+            else:
+                break
+        
+        if count >= 5:
+            return True
+    return False
+
+# 🔽 プレイヤー切断時の処理 (disconnect ハンドラを修正) 🔽
 @socketio.on('disconnect')
 def handle_disconnect():
+    global gomoku_waiting_player
     user_id = session.get('user_id')
+    
+    # DM用の処理 (既存)
     if user_id and user_id in user_sids:
-        del user_sids[user_id]
+        if request.sid == user_sids[user_id]:
+            del user_sids[user_id]
 
+    # 五目並べ待機中のプレイヤーが切断した場合
+    if user_id and user_id == gomoku_waiting_player:
+        gomoku_waiting_player = None
+
+# ▼▼▼ ここからが「ゲーム中切断」の処理ロジック ▼▼▼
+    game_to_remove = None
+    opponent_sid = None
+    winner = None
+    loser = None
+
+    # 1. すべてのゲームルームから切断者を探す
+    for room_id, game in gomoku_games.items():
+        if user_id in game['players']:
+            game_to_remove = room_id
+            
+            # 2. 対戦相手 (opponent) を特定
+            opponent_id = [pid for pid in game['players'] if pid != user_id][0]
+            opponent_sid = user_sids.get(opponent_id)
+            
+            # 3. 対戦相手 (opponent) を勝者とする
+            winner = User.query.get(opponent_id)
+            loser = User.query.get(user_id) # user_id が切断者
+            break # ゲームが見つかったらループを抜ける
+
+    # 4. ゲームが見つかり、かつ相手がまだオンラインの場合
+    if game_to_remove and opponent_sid and winner and loser:
+        
+        # 5. スコアを更新 (要望：勝ち+10, 負け-5, 最低0)
+        winner.gomoku_score += 10
+        loser.gomoku_score = max(0, loser.gomoku_score - 5)
+        db.session.commit()
+
+        # 6. 相手に「相手が切断したため勝利」と通知
+        emit('gomoku_game_over', {
+            'winner_name': winner.name,
+            'winner_score': winner.gomoku_score,
+            'loser_score': loser.gomoku_score,
+            'winner_id': winner.user_id,
+            'disconnected': True # ◀️ 切断フラグを追加
+        }, room=opponent_sid) # 相手にだけ通知
+
+        # 7. サーバーからこのゲームルームを削除
+        if game_to_remove in gomoku_games:
+            try:
+                del gomoku_games[game_to_remove]
+            except KeyError:
+                pass # 既に削除済みの場合を考慮
+    # ▲▲▲ 切断ロジック追加完了 ▲▲▲
 
 # ====== 🔽 追加: DMメッセージ履歴取得API 🔽 ======
 @app.route("/api/messages/<int:recipient_id>")
